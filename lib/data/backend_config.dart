@@ -12,5 +12,20 @@ class BackendConfig {
   /// API endpoints
   static const String summaryEndpoint = '/api/summary';
   static const String mriPredictEndpoint = '/api/mri/predict';
+
+  /// MongoDB API URL
+  static const String mongoDbApiUrl = 'http://localhost:3000';
+
+  /// Auth endpoints
+  static const String loginEndpoint = '/api/auth/login';
+  static const String registerEndpoint = '/api/auth/register';
+  static const String refreshTokenEndpoint = '/api/auth/refresh';
+
+  /// Patient data endpoints
+  static const String migraineEventsEndpoint = '/api/migraine-events';
+  static const String mriScansEndpoint = '/api/mri-scans';
+  static const String medicationLogsEndpoint = '/api/medication-logs';
 }
+
+
 

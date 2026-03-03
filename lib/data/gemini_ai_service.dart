@@ -12,13 +12,13 @@ class GeminiAiService {
   }
 
   void _initializeModel() {
-    if (LiveKitConfig.geminiApiKey.isEmpty) {
+    if (AiConfig.geminiApiKey.isEmpty) {
       throw Exception('Gemini API Key is not configured');
     }
 
     _model = GenerativeModel(
       model: 'gemini-2.0-flash',
-      apiKey: LiveKitConfig.geminiApiKey,
+      apiKey: AiConfig.geminiApiKey,
       generationConfig: GenerationConfig(
         temperature: 0.7,
         topP: 0.95,

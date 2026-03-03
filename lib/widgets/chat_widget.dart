@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/gemini_ai_service.dart';
+import '../data/voice_agent_service.dart';
 
 /// Chat message model
 class ChatMessage {
@@ -26,9 +27,11 @@ class ChatDialog extends StatefulWidget {
 
 class _ChatDialogState extends State<ChatDialog> {
   late final GeminiAiService _aiService;
+  late final VoiceAgentService _voiceService;
   final List<ChatMessage> _messages = [];
   final TextEditingController _messageController = TextEditingController();
   bool _isLoading = false;
+  bool _isListening = false;
   late ScrollController _scrollController;
 
   @override
@@ -36,7 +39,28 @@ class _ChatDialogState extends State<ChatDialog> {
     super.initState();
     _scrollController = ScrollController();
     _aiService = GeminiAiService();
+    _voiceService = VoiceAgentService();
+    _setupVoiceAgent();
     _addInitialMessage();
+  }
+
+  void _setupVoiceAgent() {
+    _voiceService.onSpeechResult = (recognizedWords) {
+      _messageController.text = recognizedWords;
+      _sendMessage();
+    };
+
+    _voiceService.onListeningStart = () {
+      setState(() {
+        _isListening = true;
+      });
+    };
+
+    _voiceService.onListeningEnd = () {
+      setState(() {
+        _isListening = false;
+      });
+    };
   }
 
   void _addInitialMessage() {
@@ -45,7 +69,7 @@ class _ChatDialogState extends State<ChatDialog> {
         ChatMessage(
           id: DateTime.now().toString(),
           text:
-              'Hello! I\'m Painpal AI, your migraine and pain management assistant. How can I help you today?',
+              'Hello! I\'m Painpal AI, your migraine and pain management assistant. You can type your message or use the microphone icon to speak. How can I help you today?',
           isUser: false,
           timestamp: DateTime.now(),
         ),
@@ -89,6 +113,9 @@ class _ChatDialogState extends State<ChatDialog> {
         _isLoading = false;
       });
 
+      // Speak the response
+      await _voiceService.speak(response);
+
       _scrollToBottom();
     } catch (e) {
       setState(() {
@@ -102,6 +129,25 @@ class _ChatDialogState extends State<ChatDialog> {
         );
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _toggleListening() async {
+    try {
+      if (_isListening) {
+        await _voiceService.stopListening();
+      } else {
+        await _voiceService.startListening();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Microphone error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -122,6 +168,7 @@ class _ChatDialogState extends State<ChatDialog> {
     _messageController.dispose();
     _scrollController.dispose();
     _aiService.dispose();
+    _voiceService.dispose();
     super.dispose();
   }
 
@@ -230,7 +277,7 @@ class _ChatDialogState extends State<ChatDialog> {
                         controller: _messageController,
                         maxLines: null,
                         minLines: 1,
-                        enabled: !_isLoading,
+                        enabled: !_isLoading && !_isListening,
                         decoration: InputDecoration(
                           hintText: 'Ask me anything...',
                           hintStyle: const TextStyle(color: Colors.grey),
@@ -260,10 +307,26 @@ class _ChatDialogState extends State<ChatDialog> {
                       ),
                     ),
                     const SizedBox(width: 8),
+                    // Microphone button
+                    FloatingActionButton(
+                      mini: true,
+                      backgroundColor: _isListening
+                          ? const Color(0xFFFF6B6B)
+                          : const Color(0xFFB6F36B),
+                      onPressed: _toggleListening,
+                      tooltip: _isListening ? 'Stop listening' : 'Start listening',
+                      child: Icon(
+                        _isListening ? Icons.mic : Icons.mic_none,
+                        color: const Color(0xFF0F1218),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Send button
                     FloatingActionButton(
                       mini: true,
                       backgroundColor: const Color(0xFFB6F36B),
-                      onPressed: _isLoading ? null : _sendMessage,
+                      onPressed: _isLoading || _isListening ? null : _sendMessage,
                       tooltip: 'Send message',
                       child: Icon(
                         Icons.send,
