@@ -31,7 +31,6 @@ class _ChatDialogState extends State<ChatDialog> {
   final List<ChatMessage> _messages = [];
   final TextEditingController _messageController = TextEditingController();
   bool _isLoading = false;
-  bool _isListening = false;
   late ScrollController _scrollController;
 
   @override
@@ -40,27 +39,7 @@ class _ChatDialogState extends State<ChatDialog> {
     _scrollController = ScrollController();
     _aiService = GeminiAiService();
     _voiceService = VoiceAgentService();
-    _setupVoiceAgent();
     _addInitialMessage();
-  }
-
-  void _setupVoiceAgent() {
-    _voiceService.onSpeechResult = (recognizedWords) {
-      _messageController.text = recognizedWords;
-      _sendMessage();
-    };
-
-    _voiceService.onListeningStart = () {
-      setState(() {
-        _isListening = true;
-      });
-    };
-
-    _voiceService.onListeningEnd = () {
-      setState(() {
-        _isListening = false;
-      });
-    };
   }
 
   void _addInitialMessage() {
@@ -69,7 +48,7 @@ class _ChatDialogState extends State<ChatDialog> {
         ChatMessage(
           id: DateTime.now().toString(),
           text:
-              'Hello! I\'m Painpal AI, your migraine and pain management assistant. You can type your message or use the microphone icon to speak. How can I help you today?',
+              'Hello! I\'m Painpal AI, your migraine and pain management assistant. Type your questions and I\'ll respond with text and voice. How can I help you today?',
           isUser: false,
           timestamp: DateTime.now(),
         ),
@@ -132,24 +111,6 @@ class _ChatDialogState extends State<ChatDialog> {
     }
   }
 
-  Future<void> _toggleListening() async {
-    try {
-      if (_isListening) {
-        await _voiceService.stopListening();
-      } else {
-        await _voiceService.startListening();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Microphone error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
 
   void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -268,73 +229,54 @@ class _ChatDialogState extends State<ChatDialog> {
                 bottomRight: Radius.circular(16),
               ),
             ),
-            child: Column(
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _messageController,
-                        maxLines: null,
-                        minLines: 1,
-                        enabled: !_isLoading && !_isListening,
-                        decoration: InputDecoration(
-                          hintText: 'Ask me anything...',
-                          hintStyle: const TextStyle(color: Colors.grey),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Color(0xFF2A2E35),
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Color(0xFF2A2E35),
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                              color: Color(0xFFB6F36B),
-                            ),
-                          ),
-                          contentPadding:
-                              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    maxLines: null,
+                    minLines: 1,
+                    enabled: !_isLoading,
+                    decoration: InputDecoration(
+                      hintText: 'Ask me anything...',
+                      hintStyle: const TextStyle(color: Colors.grey),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF2A2E35),
                         ),
-                        style: const TextStyle(color: Colors.white),
-                        onSubmitted: (_) => _sendMessage(),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Microphone button
-                    FloatingActionButton(
-                      mini: true,
-                      backgroundColor: _isListening
-                          ? const Color(0xFFFF6B6B)
-                          : const Color(0xFFB6F36B),
-                      onPressed: _toggleListening,
-                      tooltip: _isListening ? 'Stop listening' : 'Start listening',
-                      child: Icon(
-                        _isListening ? Icons.mic : Icons.mic_none,
-                        color: const Color(0xFF0F1218),
-                        size: 20,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF2A2E35),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Send button
-                    FloatingActionButton(
-                      mini: true,
-                      backgroundColor: const Color(0xFFB6F36B),
-                      onPressed: _isLoading || _isListening ? null : _sendMessage,
-                      tooltip: 'Send message',
-                      child: Icon(
-                        Icons.send,
-                        color: const Color(0xFF0F1218),
-                        size: _isLoading ? 16 : 20,
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: Color(0xFFB6F36B),
+                        ),
                       ),
+                      contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     ),
-                  ],
+                    style: const TextStyle(color: Colors.white),
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Send button
+                FloatingActionButton(
+                  mini: true,
+                  backgroundColor: const Color(0xFFB6F36B),
+                  onPressed: _isLoading ? null : _sendMessage,
+                  tooltip: 'Send message',
+                  child: Icon(
+                    Icons.send,
+                    color: const Color(0xFF0F1218),
+                    size: _isLoading ? 16 : 20,
+                  ),
                 ),
               ],
             ),
