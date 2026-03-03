@@ -1,0 +1,101 @@
+workflows:
+  ios-build:
+    name: iOS Build & Deploy
+    instance_type: mac_mini_m1
+    max_build_duration: 120
+    environment:
+      ios: default
+      xcode: latest
+      cocoapods: default
+      groups:
+        - app_store_credentials
+
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch:
+        patterns:
+          - main
+          - develop
+          - feature/*
+      cancel_previous_builds: true
+
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+
+      - name: Build iOS app
+        script: |
+          flutter build ios --release \
+            --no-codesign
+
+      - name: Archive app
+        script: |
+          xcodebuild \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath build/ios/Runner.xcarchive \
+            archive
+
+      - name: Export IPA
+        script: |
+          xcodebuild \
+            -exportArchive \
+            -archivePath build/ios/Runner.xcarchive \
+            -exportOptionsPlist ios/ExportOptions.plist \
+            -exportPath build/ios/ipa
+
+    artifacts:
+      - build/ios/ipa/**/*.ipa
+      - build/ios/Runner.xcarchive
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false
+
+      email:
+        recipients:
+          - user@example.com
+        notify:
+          success: true
+          failure: true
+
+  android-build:
+    name: Android Build & Deploy
+    instance_type: linux
+    max_build_duration: 120
+    environment:
+      android: default
+      java: default
+      groups:
+        - google_play_credentials
+
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch:
+        patterns:
+          - main
+          - develop
+
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+
+      - name: Build Android app
+        script: flutter build appbundle --release
+
+    artifacts:
+      - build/app/outputs/bundle/release/*.aab
+
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: true
+
