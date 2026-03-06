@@ -36,7 +36,7 @@ dependencies:
   # Google Generative AI (Gemini)
   google_generative_ai: ^0.4.0
 
-  # Voice Agent - Text to Speech only
+  # Voice Agent - Text to Speech and Speech Recognition
   flutter_tts: ^3.8.1
 
 
