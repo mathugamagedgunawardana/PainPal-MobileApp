@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../data/database.dart';
 import '../data/migraine_risk_service.dart';
 import '../data/models.dart';
-import '../data/notification_service.dart';
 import '../data/storage.dart';
+import '../widgets/illustrations.dart';
 
 class OverviewScreen extends StatefulWidget {
   const OverviewScreen({super.key});
@@ -18,7 +18,6 @@ class _OverviewScreenState extends State<OverviewScreen> {
   final _riskService = MigraineRiskService();
   final _storage = SettingsStorage();
   late Future<List<MigraineAttack>> _attacksFuture;
-  bool _riskAlertShown = false;
 
   @override
   void initState() {
@@ -26,57 +25,48 @@ class _OverviewScreenState extends State<OverviewScreen> {
     _attacksFuture = _database.fetchMigraineAttacks();
   }
 
-  Future<void> _maybeShowRiskNotification(MigraineRiskResult result) async {
-    if (!result.isHigh || _riskAlertShown) return;
-    final enabled = await _storage.getNotificationsRisk();
-    if (!enabled) return;
-    _riskAlertShown = true;
-    await NotificationService.instance.showRiskAlert();
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
+              // Hero
               Center(
                 child: Column(
                   children: [
                     Container(
-                      width: 80,
-                      height: 80,
+                      width: 100,
+                      height: 100,
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
-                        borderRadius: BorderRadius.circular(20),
+                        color: theme.colorScheme.primary.withOpacity(0.2),
+                        shape: BoxShape.circle,
                       ),
-                      child: Center(
-                        child: Icon(
-                          Icons.health_and_safety,
-                          size: 40,
-                          color: isDark ? Colors.black : Colors.white,
-                        ),
+                      child: Icon(
+                        Icons.health_and_safety,
+                        size: 48,
+                        color: theme.colorScheme.primary,
                       ),
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'Welcome to Painpal',
-                      style: theme.textTheme.headlineMedium?.copyWith(
+                      'Welcome to PainPal',
+                      style: theme.textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     Text(
                       'Your migraine management companion',
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: isDark ? Colors.grey : Colors.grey.shade700,
+                        color: theme.colorScheme.onSurface.withOpacity(0.7),
                       ),
                     ),
                   ],
@@ -84,92 +74,56 @@ class _OverviewScreenState extends State<OverviewScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Migraine Risk Forecast Card
+              // Risk Card
               FutureBuilder<List<MigraineAttack>>(
                 future: _attacksFuture,
                 builder: (context, snapshot) {
-                  MigraineRiskResult result;
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    result = _riskService.calculateRisk([]);
-                  } else {
-                    result = _riskService.calculateRisk(snapshot.data!);
-                    _maybeShowRiskNotification(result);
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    );
                   }
+                  
+                  final attacks = snapshot.data ?? [];
+                  final result = _riskService.calculateRisk(attacks);
+                  
                   return _RiskCard(result: result, theme: theme);
                 },
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
 
-              // Features Section
               Text(
-                'Features',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Feature 1
-              _FeatureCard(
-                icon: Icons.edit_note,
-                title: 'Log Migraine Attacks',
-                description: 'Record details of your migraine attacks including symptoms, duration, and severity.',
+                'Actions',
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
 
-              // Feature 2
+              _FeatureCard(
+                icon: Icons.edit_note,
+                title: 'Log Attack',
+                description: 'Record symptoms and severity.',
+              ),
+              const SizedBox(height: 12),
+
               _FeatureCard(
                 icon: Icons.image_search,
                 title: 'MRI Upload',
-                description: 'Upload and analyze MRI images to better understand your condition.',
+                description: 'Analyze brain scans.',
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 24),
 
-              // Feature 3
-              _FeatureCard(
-                icon: Icons.history,
-                title: 'View History',
-                description: 'Track patterns and trends in your migraine history over time.',
-              ),
-              const SizedBox(height: 12),
-
-              // Feature 4
-              _FeatureCard(
-                icon: Icons.settings,
-                title: 'Settings',
-                description: 'Customize your preferences and notification settings.',
-              ),
-              const SizedBox(height: 40),
-
-              // Quick Start Section
               Text(
-                'Quick Start',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              _StepCard(
-                number: '1',
-                title: 'Log Your First Attack',
-                description: 'Go to the "Log Attack" tab to record your first migraine.',
+                'Getting Started',
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
-
-              _StepCard(
-                number: '2',
-                title: 'Upload MRI Images',
-                description: 'Use the "MRI Upload" tab to add medical imaging.',
-              ),
-              const SizedBox(height: 12),
-
-              _StepCard(
-                number: '3',
-                title: 'Monitor Progress',
-                description: 'Check the "History" tab to see patterns and improvements.',
-              ),
-              const SizedBox(height: 40),
+              
+              _StepCard(number: '1', title: 'Log an Attack', description: 'Start tracking patterns.'),
+              const SizedBox(height: 8),
+              _StepCard(number: '2', title: 'Sync MRI', description: 'Upload your latest scans.'),
             ],
           ),
         ),
@@ -186,92 +140,45 @@ class _RiskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = theme.brightness == Brightness.dark;
     final isHigh = result.isHigh;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isHigh
-            ? Colors.orange.withValues(alpha: isDark ? 0.25 : 0.15)
-            : theme.cardTheme.color ?? theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isHigh ? Colors.orange : (isDark ? const Color(0xFF2A2E35) : Colors.grey.shade300),
-          width: 2,
-        ),
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: theme.dividerColor),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                isHigh ? Icons.warning_amber_rounded : Icons.insights,
-                color: isHigh ? Colors.orange : theme.colorScheme.primary,
-                size: 28,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Migraine Risk Today',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isHigh ? Icons.warning_amber_rounded : Icons.insights,
+                  color: isHigh ? Colors.orange : theme.colorScheme.primary,
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '${result.score}%',
-            style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: isHigh ? Colors.orange : theme.colorScheme.primary,
+                const SizedBox(width: 12),
+                const Text('Migraine Risk Today', style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Contributing factors:',
-            style: theme.textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          ...result.factors.map((f) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('• ', style: theme.textTheme.bodyMedium),
-                    Expanded(child: Text(f, style: theme.textTheme.bodySmall)),
-                  ],
-                ),
-              )),
-          if (isHigh) ...[
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.amber.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline, color: Colors.amber, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Consider hydration, rest, and avoiding known triggers.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.amber.shade800,
-                      ),
-                    ),
-                  ),
-                ],
+            Text(
+              '${result.score}%',
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: isHigh ? Colors.orange : theme.colorScheme.primary,
               ),
             ),
+            const SizedBox(height: 8),
+            if (result.factors.isNotEmpty) ...[
+              const Text('Factors:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              ...result.factors.take(2).map((f) => Text('• $f', style: const TextStyle(fontSize: 12))),
+            ]
           ],
-        ],
+        ),
       ),
     );
   }
@@ -282,68 +189,24 @@ class _FeatureCard extends StatelessWidget {
   final String title;
   final String description;
 
-  const _FeatureCard({
-    required this.icon,
-    required this.title,
-    required this.description,
-  });
+  const _FeatureCard({required this.icon, required this.title, required this.description});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark
-              ? const Color(0xFF2A2E35)
-              : Colors.grey.shade300,
-          width: 1,
-        ),
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: theme.dividerColor),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Center(
-              child: Icon(
-                icon,
-                color: theme.colorScheme.primary,
-                size: 24,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: isDark ? Colors.grey : Colors.grey.shade700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: theme.colorScheme.primaryContainer,
+          child: Icon(icon, color: theme.colorScheme.primary),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(description),
       ),
     );
   }
@@ -354,73 +217,29 @@ class _StepCard extends StatelessWidget {
   final String title;
   final String description;
 
-  const _StepCard({
-    required this.number,
-    required this.title,
-    required this.description,
-  });
+  const _StepCard({required this.number, required this.title, required this.description});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color ?? theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isDark
-              ? const Color(0xFF2A2E35)
-              : Colors.grey.shade300,
-          width: 1,
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 14,
+          backgroundColor: theme.colorScheme.secondary,
+          child: Text(number, style: const TextStyle(fontSize: 12, color: Colors.white)),
         ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Center(
-              child: Text(
-                number,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.black : Colors.white,
-                ),
-              ),
-            ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(description, style: theme.textTheme.bodySmall),
+            ],
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: isDark ? Colors.grey : Colors.grey.shade700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
-
