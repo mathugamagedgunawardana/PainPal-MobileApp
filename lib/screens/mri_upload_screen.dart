@@ -108,11 +108,6 @@ class _MriUploadScreenState extends State<MriUploadScreen> {
     final isImageSelected = _selectedImage != null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Upload MRI Scan'),
-        elevation: 0,
-        backgroundColor: const Color(0xFF171B22),
-      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),

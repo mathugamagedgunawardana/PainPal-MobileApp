@@ -35,21 +35,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('History'),
-        elevation: 0,
-        backgroundColor: const Color(0xFF171B22),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              setState(() {
-                _reload();
-              });
-            },
-          ),
-        ],
-      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
@@ -361,7 +346,7 @@ class _MriCard extends StatelessWidget {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFB6F36B).withOpacity(0.2),
+                        color: const Color(0xFFB6F36B).withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(

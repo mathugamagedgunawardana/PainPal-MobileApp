@@ -5,6 +5,9 @@ class OverviewScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -20,31 +23,29 @@ class OverviewScreen extends StatelessWidget {
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFB6F36B),
+                        color: theme.colorScheme.primary,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Icon(
                           Icons.health_and_safety,
                           size: 40,
-                          color: Color(0xFF0F1218),
+                          color: isDark ? Colors.black : Colors.white,
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'Welcome to Painpal',
-                      style: TextStyle(
-                        fontSize: 28,
+                      style: theme.textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'Your migraine management companion',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: isDark ? Colors.grey : Colors.grey.shade700,
                       ),
                     ),
                   ],
@@ -53,10 +54,9 @@ class OverviewScreen extends StatelessWidget {
               const SizedBox(height: 40),
 
               // Features Section
-              const Text(
+              Text(
                 'Features',
-                style: TextStyle(
-                  fontSize: 20,
+                style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -95,10 +95,9 @@ class OverviewScreen extends StatelessWidget {
               const SizedBox(height: 40),
 
               // Quick Start Section
-              const Text(
+              Text(
                 'Quick Start',
-                style: TextStyle(
-                  fontSize: 20,
+                style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -145,13 +144,18 @@ class _FeatureCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF171B22),
+        color: theme.cardTheme.color ?? theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFF2A2E35),
+          color: isDark
+              ? const Color(0xFF2A2E35)
+              : Colors.grey.shade300,
           width: 1,
         ),
       ),
@@ -161,13 +165,13 @@ class _FeatureCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: const Color(0xFFB6F36B).withValues(alpha: 0.1),
+              color: theme.colorScheme.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Center(
               child: Icon(
                 icon,
-                color: const Color(0xFFB6F36B),
+                color: theme.colorScheme.primary,
                 size: 24,
               ),
             ),
@@ -179,17 +183,15 @@ class _FeatureCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   description,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: isDark ? Colors.grey : Colors.grey.shade700,
                   ),
                 ),
               ],
@@ -214,13 +216,18 @@ class _StepCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF171B22),
+        color: theme.cardTheme.color ?? theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: const Color(0xFF2A2E35),
+          color: isDark
+              ? const Color(0xFF2A2E35)
+              : Colors.grey.shade300,
           width: 1,
         ),
       ),
@@ -230,16 +237,16 @@ class _StepCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFFB6F36B),
+              color: theme.colorScheme.primary,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Center(
               child: Text(
                 number,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F1218),
+                  color: isDark ? Colors.black : Colors.white,
                 ),
               ),
             ),
@@ -251,17 +258,15 @@ class _StepCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   description,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: isDark ? Colors.grey : Colors.grey.shade700,
                   ),
                 ),
               ],

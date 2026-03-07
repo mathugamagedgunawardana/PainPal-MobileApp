@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:provider/provider.dart';
 
+import 'data/app_theme.dart';
+import 'data/theme_provider.dart';
 import 'screens/home_screen.dart';
 
 Future<void> main() async {
@@ -18,26 +21,19 @@ class PainpalApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFFB6F36B),
-      brightness: Brightness.dark,
-    );
-
-    return MaterialApp(
-      title: 'Painpal',
-      theme: ThemeData(
-        colorScheme: scheme,
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFF0F1218),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: const Color(0xFF171B22),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
+    return ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp(
+            title: 'Painpal',
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: themeProvider.themeMode,
+            home: const HomeScreen(),
+          );
+        },
       ),
-      home: const HomeScreen(),
     );
   }
 }

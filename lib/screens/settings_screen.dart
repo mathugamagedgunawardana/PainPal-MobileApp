@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../data/storage.dart';
+import '../data/theme_provider.dart';
 import '../widgets/custom_widgets.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -74,14 +76,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        elevation: 0,
-        backgroundColor: const Color(0xFF171B22),
-      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          // APPEARANCE SECTION
+          SectionHeader(
+            title: 'Appearance',
+            subtitle: 'Customize how the app looks',
+            illustrationIcon: Icons.palette,
+          ),
+          const SizedBox(height: 16),
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, child) {
+              return _SettingCard(
+                title: 'Theme Mode',
+                description: 'Choose between light and dark mode',
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _ThemeOption(
+                          icon: Icons.light_mode,
+                          label: 'Light',
+                          isSelected: !themeProvider.isDarkMode,
+                          onTap: () {
+                            themeProvider.setThemeMode(ThemeMode.light);
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _ThemeOption(
+                          icon: Icons.dark_mode,
+                          label: 'Dark',
+                          isSelected: themeProvider.isDarkMode,
+                          onTap: () {
+                            themeProvider.setThemeMode(ThemeMode.dark);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 32),
+
           // API SETTINGS SECTION
           SectionHeader(
             title: 'API Configuration',
@@ -97,13 +142,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               keyboardType: TextInputType.url,
               decoration: InputDecoration(
                 hintText: 'https://your-backend-host',
-                filled: true,
-                fillColor: const Color(0xFF171B22),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade700),
+                prefixIcon: Icon(
+                  Icons.link,
+                  color: theme.colorScheme.primary,
                 ),
-                prefixIcon: const Icon(Icons.link, color: Color(0xFFB6F36B)),
               ),
             ),
           ),
@@ -115,14 +157,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               controller: _patientIdController,
               decoration: InputDecoration(
                 hintText: 'e.g., patient-12345',
-                filled: true,
-                fillColor: const Color(0xFF171B22),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade700),
+                prefixIcon: Icon(
+                  Icons.badge,
+                  color: theme.colorScheme.primary,
                 ),
-                prefixIcon:
-                    const Icon(Icons.badge, color: Color(0xFFB6F36B)),
               ),
             ),
           ),
@@ -144,7 +182,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Text(
                     'Make sure you have internet connection and the API server is running.',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.blue.shade600,
+                      color: Colors.blue.shade700,
                     ),
                   ),
                 ),
@@ -172,7 +210,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             decoration: BoxDecoration(
               color: Colors.amber.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.amber.shade600, width: 2),
+              border: Border.all(color: Colors.amber.shade700, width: 2),
             ),
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -182,14 +220,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'Educational Purpose Only',
                   style: theme.textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: Colors.amber.shade600,
+                    color: Colors.amber.shade700,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'This app is for educational and self-tracking purposes only. The predictions and classifications provided by this app are NOT medical diagnoses.',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.amber.shade700,
+                    color: Colors.amber.shade800,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -197,14 +235,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'Consult Healthcare Professionals',
                   style: theme.textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: Colors.amber.shade600,
+                    color: Colors.amber.shade700,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Always consult qualified healthcare professionals for proper diagnosis, treatment recommendations, and medical advice.',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.amber.shade700,
+                    color: Colors.amber.shade800,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -212,14 +250,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'No Emergency Use',
                   style: theme.textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: Colors.amber.shade600,
+                    color: Colors.amber.shade700,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'This app should not be used for emergency medical situations. In case of emergency, please contact emergency services immediately.',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.amber.shade700,
+                    color: Colors.amber.shade800,
                   ),
                 ),
               ],
@@ -236,9 +274,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF171B22),
+              color: theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade700),
+              border: Border.all(
+                color: theme.brightness == Brightness.dark
+                    ? Colors.grey.shade700
+                    : Colors.grey.shade300,
+              ),
             ),
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -252,14 +294,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Text(
                   'Version 1.0.0',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.grey.shade400,
+                    color: theme.brightness == Brightness.dark
+                        ? Colors.grey.shade400
+                        : Colors.grey.shade600,
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   'A health-tracking application for migraine management and brain MRI analysis.',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.grey.shade400,
+                    color: theme.brightness == Brightness.dark
+                        ? Colors.grey.shade400
+                        : Colors.grey.shade600,
                   ),
                 ),
               ],
@@ -287,11 +333,17 @@ class _SettingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade900.withOpacity(0.5),
+        color: isDark
+            ? Colors.grey.shade900.withValues(alpha: 0.5)
+            : Colors.grey.shade100,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade700),
+        border: Border.all(
+          color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+        ),
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -307,7 +359,7 @@ class _SettingCard extends StatelessWidget {
           Text(
             description,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.grey.shade400,
+              color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
             ),
           ),
           const SizedBox(height: 12),
@@ -317,4 +369,67 @@ class _SettingCard extends StatelessWidget {
     );
   }
 }
+
+class _ThemeOption extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _ThemeOption({
+    Key? key,
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (isDark ? const Color(0xFFB6F36B) : const Color(0xFF8BC34A))
+              : (isDark ? const Color(0xFF171B22) : Colors.white),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? (isDark ? const Color(0xFFB6F36B) : const Color(0xFF8BC34A))
+                : (isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+            width: 2,
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        child: Column(
+          children: [
+            Icon(
+              icon,
+              size: 32,
+              color: isSelected
+                  ? Colors.black
+                  : (isDark ? Colors.grey.shade400 : Colors.grey.shade700),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected
+                    ? Colors.black
+                    : (isDark ? Colors.grey.shade400 : Colors.grey.shade700),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 
