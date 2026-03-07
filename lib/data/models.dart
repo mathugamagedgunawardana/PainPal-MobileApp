@@ -1,5 +1,45 @@
 import 'dart:convert';
 
+/// Single medication taken during an attack
+class MedicationEntry {
+  MedicationEntry({
+    required this.name,
+    required this.dosage,
+    required this.timeTaken,
+    required this.effectiveness,
+    this.id,
+    this.attackId,
+  });
+
+  final int? id;
+  final int? attackId;
+  final String name;
+  final String dosage;
+  final DateTime timeTaken;
+  final int effectiveness; // 1-5 stars
+
+  Map<String, dynamic> toDbMap() {
+    return {
+      'attack_id': attackId,
+      'name': name,
+      'dosage': dosage,
+      'time_taken': timeTaken.toIso8601String(),
+      'effectiveness': effectiveness,
+    };
+  }
+
+  static MedicationEntry fromDb(Map<String, Object?> map) {
+    return MedicationEntry(
+      id: map['id'] as int?,
+      attackId: map['attack_id'] as int?,
+      name: (map['name'] as String?) ?? '',
+      dosage: (map['dosage'] as String?) ?? '',
+      timeTaken: DateTime.tryParse(map['time_taken'] as String? ?? '') ?? DateTime.now(),
+      effectiveness: (map['effectiveness'] as int?) ?? 0,
+    );
+  }
+}
+
 class MigraineAttack {
   MigraineAttack({
     required this.durationHours,
@@ -30,8 +70,15 @@ class MigraineAttack {
     this.age,
     this.timestamp,
     this.summary,
-  });
+    this.id,
+    List<String>? triggers,
+    List<MedicationEntry>? medications,
+    this.attackStartTime,
+    this.attackEndTime,
+  })  : triggers = triggers ?? [],
+        medications = medications ?? [];
 
+  final int? id;
   final int durationHours;
   final int frequencyPerMonth;
   final String location;
@@ -60,6 +107,10 @@ class MigraineAttack {
   final int? age;
   final DateTime? timestamp;
   final String? summary;
+  final List<String> triggers;
+  final List<MedicationEntry> medications;
+  final DateTime? attackStartTime;
+  final DateTime? attackEndTime;
 
   Map<String, dynamic> toApiJson() {
     final payload = <String, dynamic>{
@@ -99,6 +150,9 @@ class MigraineAttack {
     if (timestamp != null) {
       payload['timestamp'] = timestamp!.toIso8601String();
     }
+    if (triggers.isNotEmpty) {
+      payload['triggers'] = triggers;
+    }
 
     return payload;
   }
@@ -132,11 +186,29 @@ class MigraineAttack {
       'Type': type,
       'summary': summary,
       'timestamp': (timestamp ?? DateTime.now()).toIso8601String(),
+      'triggers': jsonEncode(triggers),
+      'attack_start_time': attackStartTime?.toIso8601String(),
+      'attack_end_time': attackEndTime?.toIso8601String(),
     };
+  }
+
+  static List<String> _parseTriggers(Object? value) {
+    if (value == null) return [];
+    if (value is String && value.isEmpty) return [];
+    if (value is String) {
+      try {
+        final list = jsonDecode(value) as List<dynamic>?;
+        return list?.map((e) => e.toString()).toList() ?? [];
+      } catch (_) {
+        return [];
+      }
+    }
+    return [];
   }
 
   static MigraineAttack fromDb(Map<String, Object?> map) {
     return MigraineAttack(
+      id: map['id'] as int?,
       durationHours: (map['Duration'] as int?) ?? 0,
       frequencyPerMonth: (map['Frequency'] as int?) ?? 0,
       location: (map['Location'] as String?) ?? '',
@@ -167,6 +239,13 @@ class MigraineAttack {
           ? DateTime.tryParse(map['timestamp'] as String)
           : null,
       summary: map['summary'] as String?,
+      triggers: _parseTriggers(map['triggers']),
+      attackStartTime: map['attack_start_time'] != null
+          ? DateTime.tryParse(map['attack_start_time'] as String)
+          : null,
+      attackEndTime: map['attack_end_time'] != null
+          ? DateTime.tryParse(map['attack_end_time'] as String)
+          : null,
     );
   }
 
@@ -263,8 +342,15 @@ class MriApiResponse {
 }
 
 extension MigraineAttackCopy on MigraineAttack {
-  MigraineAttack copyWith({String? patientId}) {
+  MigraineAttack copyWith({
+    String? patientId,
+    List<String>? triggers,
+    List<MedicationEntry>? medications,
+    DateTime? attackStartTime,
+    DateTime? attackEndTime,
+  }) {
     return MigraineAttack(
+      id: id,
       durationHours: durationHours,
       frequencyPerMonth: frequencyPerMonth,
       location: location,
@@ -293,6 +379,10 @@ extension MigraineAttackCopy on MigraineAttack {
       age: age,
       timestamp: timestamp,
       summary: summary,
+      triggers: triggers ?? this.triggers,
+      medications: medications ?? this.medications,
+      attackStartTime: attackStartTime ?? this.attackStartTime,
+      attackEndTime: attackEndTime ?? this.attackEndTime,
     );
   }
 }

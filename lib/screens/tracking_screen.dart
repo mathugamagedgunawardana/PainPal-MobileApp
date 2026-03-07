@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../data/api_client.dart';
 import '../data/database.dart';
+import '../data/medication_suggestions.dart';
 import '../data/models.dart';
 import '../data/storage.dart';
+import '../data/trigger_constants.dart';
 import '../widgets/custom_widgets.dart';
 
 /// Comprehensive migraine tracking screen with statistics, trends, and insights
@@ -57,14 +59,101 @@ class _TrackingScreenState extends State<TrackingScreen> {
   int _conscience = 0;
   int _paresthesia = 0;
 
+  List<String> _triggers = [];
+  List<MedicationEntry> _medications = [];
+
   bool _submitting = false;
   MigraineApiResponse? _response;
+
+  // Quick Attack (Start / End)
+  DateTime? _quickAttackStart;
+  DateTime? _quickAttackEnd;
+  int _quickAttackIntensity = 5;
 
   @override
   void initState() {
     super.initState();
     _reload();
     _loadDraft();
+    _loadQuickAttack();
+  }
+
+  Future<void> _loadQuickAttack() async {
+    final startStr = await _storage.getQuickAttackStart();
+    final intensity = await _storage.getQuickAttackIntensity();
+    if (!mounted) return;
+    setState(() {
+      _quickAttackStart = startStr != null ? DateTime.tryParse(startStr) : null;
+      _quickAttackIntensity = intensity;
+    });
+  }
+
+  Future<void> _startQuickAttack() async {
+    final intensity = await showDialog<int>(
+      context: context,
+      builder: (context) {
+        int value = _quickAttackIntensity;
+        return AlertDialog(
+          title: const Text('Start Attack'),
+          content: StatefulBuilder(
+            builder: (context, setDialogState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Quick intensity (1-10):'),
+                  Slider(
+                    value: value.toDouble(),
+                    min: 1,
+                    max: 10,
+                    divisions: 9,
+                    onChanged: (v) => setDialogState(() => value = v.toInt()),
+                  ),
+                  Text('$value', style: Theme.of(context).textTheme.headlineSmall),
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, value),
+              child: const Text('Start'),
+            ),
+          ],
+        );
+      },
+    );
+    if (intensity == null || !mounted) return;
+    final now = DateTime.now();
+    await _storage.setQuickAttackStart(now.toIso8601String());
+    await _storage.setQuickAttackIntensity(intensity);
+    setState(() {
+      _quickAttackStart = now;
+      _quickAttackIntensity = intensity;
+    });
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Attack started. Tap "End Attack" when it\'s over to complete the log.'),
+        backgroundColor: Color(0xFFB6F36B),
+      ),
+    );
+  }
+
+  Future<void> _endQuickAttack() async {
+    if (_quickAttackStart == null) return;
+    final end = DateTime.now();
+    final durationHours = end.difference(_quickAttackStart!).inHours;
+    await _storage.setQuickAttackStart(null);
+    setState(() {
+      _durationController.text = durationHours < 1 ? '1' : durationHours.toString();
+      _intensityController.text = _quickAttackIntensity.toString();
+      _quickAttackEnd = end;
+      _showForm = true;
+    });
   }
 
   void _reload() {
@@ -104,6 +193,8 @@ class _TrackingScreenState extends State<TrackingScreen> {
     _ataxia = draft.ataxia;
     _conscience = draft.conscience;
     _paresthesia = draft.paresthesia;
+    _triggers = List.from(draft.triggers);
+    _medications = List.from(draft.medications);
 
     if (!mounted) return;
     setState(() {});
@@ -160,6 +251,10 @@ class _TrackingScreenState extends State<TrackingScreen> {
       timestamp: DateTime.now(),
       summary: draftOnly ? null : _response?.summary,
       type: draftOnly ? null : _response?.predictedType,
+      triggers: _triggers,
+      medications: _medications,
+      attackStartTime: _quickAttackStart,
+      attackEndTime: _quickAttackEnd,
     );
   }
 
@@ -215,10 +310,18 @@ class _TrackingScreenState extends State<TrackingScreen> {
         age: attack.age,
         timestamp: DateTime.now(),
         summary: result.summary,
+        triggers: attack.triggers,
+        medications: attack.medications,
+        attackStartTime: _quickAttackStart,
+        attackEndTime: _quickAttackEnd,
       );
 
       await _database.insertMigraineAttack(saved);
       await _storage.clearDraftAttack();
+      setState(() {
+        _quickAttackStart = null;
+        _quickAttackEnd = null;
+      });
 
       if (!mounted) return;
 
@@ -322,6 +425,9 @@ class _TrackingScreenState extends State<TrackingScreen> {
             child: ListView(
               padding: const EdgeInsets.all(20),
               children: [
+                // Quick Attack: Start / End
+                _buildQuickAttackCard(theme),
+                const SizedBox(height: 16),
                 // Date Range Selector
                 _buildDateRangeSelector(),
                 const SizedBox(height: 20),
@@ -340,6 +446,10 @@ class _TrackingScreenState extends State<TrackingScreen> {
 
                 // Trigger Analysis
                 _buildTriggerSection(filteredAttacks, theme),
+                const SizedBox(height: 24),
+
+                // Medication Insights
+                _buildMedicationSection(filteredAttacks, theme),
                 const SizedBox(height: 24),
 
                 // Symptom Patterns
@@ -361,13 +471,82 @@ class _TrackingScreenState extends State<TrackingScreen> {
     );
   }
 
+  Widget _buildQuickAttackCard(ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
+    if (_quickAttackStart != null) {
+      final since = DateTime.now().difference(_quickAttackStart!);
+      final mins = since.inMinutes;
+      final text = mins < 60 ? '${mins}m' : '${since.inHours}h ${mins % 60}m';
+      return Card(
+        color: Colors.orange.withValues(alpha: isDark ? 0.2 : 0.1),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.timer, color: Colors.orange, size: 28),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Attack in progress',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'Started $text ago · Intensity $_quickAttackIntensity/10',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: _endQuickAttack,
+                icon: const Icon(Icons.stop),
+                label: const Text('End Attack'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return Card(
+      color: const Color(0xFF171B22),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: FilledButton.icon(
+          onPressed: _startQuickAttack,
+          icon: const Icon(Icons.play_arrow),
+          label: const Text('Start Attack'),
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFFB6F36B),
+            foregroundColor: Colors.black,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmptyState(ThemeData theme) {
     if (_showForm) {
-      // Show the logging form
       return _buildLoggingForm(theme);
     }
 
-    // Show empty state with button
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(40),
@@ -396,17 +575,20 @@ class _TrackingScreenState extends State<TrackingScreen> {
                     : Colors.grey.shade600,
               ),
             ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
+            const SizedBox(height: 24),
+            _buildQuickAttackCard(theme),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
               onPressed: () {
                 setState(() {
                   _showForm = true;
                 });
               },
-              icon: const Icon(Icons.add),
-              label: const Text('Log Your First Attack'),
-              style: ElevatedButton.styleFrom(
+              icon: const Icon(Icons.edit_note),
+              label: const Text('Log Your First Attack (full form)'),
+              style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                side: const BorderSide(color: Color(0xFFB6F36B)),
               ),
             ),
           ],
@@ -774,6 +956,8 @@ class _TrackingScreenState extends State<TrackingScreen> {
 
   Widget _buildTriggerSection(List<MigraineAttack> attacks, ThemeData theme) {
     final triggerStats = _calculateTriggerStats(attacks);
+    final triggerFreq = _calculateTriggerFrequency(attacks);
+    final triggerIntensity = _calculateTriggerIntensityCorrelation(attacks);
 
     return Card(
       color: const Color(0xFF171B22),
@@ -787,7 +971,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                 const Icon(Icons.warning_amber, color: Colors.yellow, size: 24),
                 const SizedBox(width: 8),
                 const Text(
-                  'Common Trigger Patterns',
+                  'Trigger Tracking',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -798,11 +982,119 @@ class _TrackingScreenState extends State<TrackingScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Location and character patterns in your attacks',
+              'Frequency and correlation with intensity',
               style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
             ),
             const SizedBox(height: 16),
+            if (triggerFreq.isNotEmpty) ...[
+              const Text(
+                'Trigger frequency',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildFrequencyChart(triggerFreq),
+              const SizedBox(height: 16),
+            ],
+            if (triggerIntensity.isNotEmpty) ...[
+              const Text(
+                'Avg intensity when trigger present',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...triggerIntensity.entries.take(8).map((e) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(e.key, style: const TextStyle(color: Colors.white)),
+                        Text(
+                          '${e.value.toStringAsFixed(1)}/10',
+                          style: const TextStyle(
+                            color: Color(0xFFB6F36B),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+              const SizedBox(height: 16),
+            ],
             _buildTriggerList(triggerStats),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMedicationSection(List<MigraineAttack> attacks, ThemeData theme) {
+    final usage = _calculateMedicationUsage(attacks);
+    final effectiveness = _calculateMedicationEffectiveness(attacks);
+    if (usage.isEmpty) return const SizedBox.shrink();
+
+    return Card(
+      color: const Color(0xFF171B22),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.medication, color: Colors.blue, size: 24),
+                const SizedBox(width: 8),
+                const Text(
+                  'Medication Insights',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Most used',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            _buildFrequencyChart(usage),
+            if (effectiveness.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Average effectiveness (1-5)',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...effectiveness.entries.take(8).map((e) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(e.key, style: const TextStyle(color: Colors.white)),
+                        Text(
+                          '${e.value.toStringAsFixed(1)} ★',
+                          style: const TextStyle(
+                            color: Color(0xFFB6F36B),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+            ],
           ],
         ),
       ),
@@ -1476,6 +1768,32 @@ class _TrackingScreenState extends State<TrackingScreen> {
             },
           ),
 
+          // POSSIBLE TRIGGERS SECTION
+          const SizedBox(height: 24),
+          SectionHeader(
+            title: 'Possible Triggers',
+            subtitle: 'Select any factors that may have contributed',
+            illustrationIcon: Icons.warning_amber,
+          ),
+          const SizedBox(height: 8),
+          TriggerChipSection(
+            selectedTriggers: _triggers,
+            onChanged: (v) => setState(() => _triggers = v),
+            presetTriggers: kPresetTriggers,
+          ),
+          const SizedBox(height: 24),
+          SectionHeader(
+            title: 'Medications Taken',
+            subtitle: 'Log any medications used for this attack',
+            illustrationIcon: Icons.medication,
+          ),
+          const SizedBox(height: 8),
+          MedicationEntrySection(
+            medications: _medications,
+            onChanged: (v) => setState(() => _medications = v),
+            nameSuggestions: kMedicationSuggestions,
+          ),
+
           // OPTIONAL DETAILS SECTION
           const SizedBox(height: 24),
           SectionHeader(
@@ -1712,16 +2030,39 @@ class _TrackingScreenState extends State<TrackingScreen> {
     return distribution;
   }
 
+  /// Trigger frequency from attack.triggers (preset + custom)
+  Map<String, int> _calculateTriggerFrequency(List<MigraineAttack> attacks) {
+    final map = <String, int>{};
+    for (final a in attacks) {
+      for (final t in a.triggers) {
+        if (t.isNotEmpty) map[t] = (map[t] ?? 0) + 1;
+      }
+    }
+    return map;
+  }
+
+  /// Average intensity when each trigger was present
+  Map<String, double> _calculateTriggerIntensityCorrelation(List<MigraineAttack> attacks) {
+    final sum = <String, int>{};
+    final count = <String, int>{};
+    for (final a in attacks) {
+      for (final t in a.triggers) {
+        if (t.isEmpty) continue;
+        sum[t] = (sum[t] ?? 0) + a.intensity;
+        count[t] = (count[t] ?? 0) + 1;
+      }
+    }
+    return sum.map((k, v) => MapEntry(k, count[k]! > 0 ? v / count[k]! : 0.0));
+  }
+
   Map<String, dynamic> _calculateTriggerStats(List<MigraineAttack> attacks) {
     if (attacks.isEmpty) return {};
 
-    // Location frequency
     final locationMap = <String, int>{};
     for (var attack in attacks) {
       locationMap[attack.location] = (locationMap[attack.location] ?? 0) + 1;
     }
 
-    // Character frequency
     final characterMap = <String, int>{};
     for (var attack in attacks) {
       characterMap[attack.character] = (characterMap[attack.character] ?? 0) + 1;
@@ -1742,6 +2083,29 @@ class _TrackingScreenState extends State<TrackingScreen> {
         'percentage': (topCharacter.value / attacks.length) * 100,
       },
     };
+  }
+
+  Map<String, int> _calculateMedicationUsage(List<MigraineAttack> attacks) {
+    final map = <String, int>{};
+    for (final a in attacks) {
+      for (final m in a.medications) {
+        if (m.name.isNotEmpty) map[m.name] = (map[m.name] ?? 0) + 1;
+      }
+    }
+    return map;
+  }
+
+  Map<String, double> _calculateMedicationEffectiveness(List<MigraineAttack> attacks) {
+    final sum = <String, int>{};
+    final count = <String, int>{};
+    for (final a in attacks) {
+      for (final m in a.medications) {
+        if (m.name.isEmpty) continue;
+        sum[m.name] = (sum[m.name] ?? 0) + m.effectiveness;
+        count[m.name] = (count[m.name] ?? 0) + 1;
+      }
+    }
+    return sum.map((k, v) => MapEntry(k, count[k]! > 0 ? v / count[k]! : 0.0));
   }
 
   Map<String, int> _calculateSymptomStats(List<MigraineAttack> attacks) {

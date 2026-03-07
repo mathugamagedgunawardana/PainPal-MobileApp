@@ -3,15 +3,17 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 
 import 'data/app_theme.dart';
+import 'data/notification_service.dart';
 import 'data/theme_provider.dart';
 import 'screens/home_screen.dart';
 
 Future<void> main() async {
-  // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables from .env file
   await dotenv.load(fileName: ".env");
+
+  // Initialize local notifications in background so app opens immediately
+  NotificationService.instance.initialize();
 
   runApp(const PainpalApp());
 }

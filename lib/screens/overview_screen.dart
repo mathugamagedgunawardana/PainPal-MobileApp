@@ -1,7 +1,38 @@
 import 'package:flutter/material.dart';
 
-class OverviewScreen extends StatelessWidget {
+import '../data/database.dart';
+import '../data/migraine_risk_service.dart';
+import '../data/models.dart';
+import '../data/notification_service.dart';
+import '../data/storage.dart';
+
+class OverviewScreen extends StatefulWidget {
   const OverviewScreen({super.key});
+
+  @override
+  State<OverviewScreen> createState() => _OverviewScreenState();
+}
+
+class _OverviewScreenState extends State<OverviewScreen> {
+  final _database = PainpalDatabase.instance;
+  final _riskService = MigraineRiskService();
+  final _storage = SettingsStorage();
+  late Future<List<MigraineAttack>> _attacksFuture;
+  bool _riskAlertShown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _attacksFuture = _database.fetchMigraineAttacks();
+  }
+
+  Future<void> _maybeShowRiskNotification(MigraineRiskResult result) async {
+    if (!result.isHigh || _riskAlertShown) return;
+    final enabled = await _storage.getNotificationsRisk();
+    if (!enabled) return;
+    _riskAlertShown = true;
+    await NotificationService.instance.showRiskAlert();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +82,23 @@ class OverviewScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 24),
+
+              // Migraine Risk Forecast Card
+              FutureBuilder<List<MigraineAttack>>(
+                future: _attacksFuture,
+                builder: (context, snapshot) {
+                  MigraineRiskResult result;
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    result = _riskService.calculateRisk([]);
+                  } else {
+                    result = _riskService.calculateRisk(snapshot.data!);
+                    _maybeShowRiskNotification(result);
+                  }
+                  return _RiskCard(result: result, theme: theme);
+                },
+              ),
+              const SizedBox(height: 32),
 
               // Features Section
               Text(
@@ -126,6 +173,105 @@ class OverviewScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _RiskCard extends StatelessWidget {
+  final MigraineRiskResult result;
+  final ThemeData theme;
+
+  const _RiskCard({required this.result, required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = theme.brightness == Brightness.dark;
+    final isHigh = result.isHigh;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isHigh
+            ? Colors.orange.withValues(alpha: isDark ? 0.25 : 0.15)
+            : theme.cardTheme.color ?? theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isHigh ? Colors.orange : (isDark ? const Color(0xFF2A2E35) : Colors.grey.shade300),
+          width: 2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isHigh ? Icons.warning_amber_rounded : Icons.insights,
+                color: isHigh ? Colors.orange : theme.colorScheme.primary,
+                size: 28,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Migraine Risk Today',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '${result.score}%',
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: isHigh ? Colors.orange : theme.colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Contributing factors:',
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          ...result.factors.map((f) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('• ', style: theme.textTheme.bodyMedium),
+                    Expanded(child: Text(f, style: theme.textTheme.bodySmall)),
+                  ],
+                ),
+              )),
+          if (isHigh) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: Colors.amber, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Consider hydration, rest, and avoiding known triggers.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.amber.shade800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }

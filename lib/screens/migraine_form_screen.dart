@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../data/api_client.dart';
 import '../data/database.dart';
+import '../data/medication_suggestions.dart';
 import '../data/models.dart';
 import '../data/storage.dart';
+import '../data/trigger_constants.dart';
 import '../widgets/custom_widgets.dart';
 
 class MigraineFormScreen extends StatefulWidget {
@@ -45,6 +47,9 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
   int _conscience = 0;
   int _paresthesia = 0;
 
+  List<String> _triggers = [];
+  List<MedicationEntry> _medications = [];
+
   bool _submitting = false;
   MigraineApiResponse? _response;
 
@@ -85,6 +90,8 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
     _ataxia = draft.ataxia;
     _conscience = draft.conscience;
     _paresthesia = draft.paresthesia;
+    _triggers = List.from(draft.triggers);
+    _medications = List.from(draft.medications);
 
     if (!mounted) {
       return;
@@ -135,6 +142,8 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
       timestamp: DateTime.now(),
       summary: draftOnly ? null : _response?.summary,
       type: draftOnly ? null : _response?.predictedType,
+      triggers: _triggers,
+      medications: _medications,
     );
   }
 
@@ -190,6 +199,8 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
         age: attack.age,
         timestamp: DateTime.now(),
         summary: result.summary,
+        triggers: attack.triggers,
+        medications: attack.medications,
       );
 
       await _database.insertMigraineAttack(saved);
@@ -490,6 +501,32 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
                   });
                 },
               ),
+              // POSSIBLE TRIGGERS SECTION
+              SectionHeader(
+                title: 'Possible Triggers',
+                subtitle: 'Select any factors that may have contributed',
+                illustrationIcon: Icons.warning_amber,
+              ),
+              const SizedBox(height: 8),
+              TriggerChipSection(
+                selectedTriggers: _triggers,
+                onChanged: (v) => setState(() => _triggers = v),
+                presetTriggers: kPresetTriggers,
+              ),
+              const SizedBox(height: 24),
+              // MEDICATIONS TAKEN SECTION
+              SectionHeader(
+                title: 'Medications Taken',
+                subtitle: 'Log any medications used for this attack',
+                illustrationIcon: Icons.medication,
+              ),
+              const SizedBox(height: 8),
+              MedicationEntrySection(
+                medications: _medications,
+                onChanged: (v) => setState(() => _medications = v),
+                nameSuggestions: kMedicationSuggestions,
+              ),
+              const SizedBox(height: 24),
               // OPTIONAL DETAILS SECTION
               SectionHeader(
                 title: 'Optional details',

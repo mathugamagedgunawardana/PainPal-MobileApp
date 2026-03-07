@@ -1,0 +1,20 @@
+/// Common medication names for autocomplete in the logging form
+const List<String> kMedicationSuggestions = [
+  'Ibuprofen',
+  'Paracetamol',
+  'Acetaminophen',
+  'Aspirin',
+  'Sumatriptan',
+  'Rizatriptan',
+  'Eletriptan',
+  'Zolmitriptan',
+  'Naproxen',
+  'Excedrin',
+  'Migraine Relief',
+  'Caffeine + Pain Reliever',
+  'Tylenol',
+  'Advil',
+  'Motrin',
+  'Aleve',
+  'Other',
+];

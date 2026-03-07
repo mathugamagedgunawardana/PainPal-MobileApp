@@ -18,6 +18,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _patientIdController = TextEditingController();
 
   bool _loading = true;
+  bool _notifRisk = true;
+  bool _notifMedication = true;
+  bool _notifDaily = true;
 
   @override
   void initState() {
@@ -30,6 +33,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final patientId = await _storage.readPatientId();
     _baseUrlController.text = baseUrl ?? '';
     _patientIdController.text = patientId ?? '';
+    _notifRisk = await _storage.getNotificationsRisk();
+    _notifMedication = await _storage.getNotificationsMedication();
+    _notifDaily = await _storage.getNotificationsDaily();
     if (!mounted) {
       return;
     }
@@ -41,6 +47,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _save() async {
     await _storage.saveBaseUrl(_baseUrlController.text);
     await _storage.savePatientId(_patientIdController.text);
+    await _storage.setNotificationsRisk(_notifRisk);
+    await _storage.setNotificationsMedication(_notifMedication);
+    await _storage.setNotificationsDaily(_notifDaily);
     if (!mounted) {
       return;
     }
@@ -162,6 +171,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   color: theme.colorScheme.primary,
                 ),
               ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // NOTIFICATIONS SECTION
+          SectionHeader(
+            title: 'Notifications',
+            subtitle: 'Choose which reminders and alerts you want',
+            illustrationIcon: Icons.notifications,
+          ),
+          const SizedBox(height: 16),
+          _SettingCard(
+            title: 'Migraine risk alert',
+            description: 'Notify when risk is high (>70%)',
+            child: SwitchListTile(
+              value: _notifRisk,
+              onChanged: (v) => setState(() => _notifRisk = v),
+              activeColor: const Color(0xFFB6F36B),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _SettingCard(
+            title: 'Medication reminder',
+            description: 'Remind to take migraine medication',
+            child: SwitchListTile(
+              value: _notifMedication,
+              onChanged: (v) => setState(() => _notifMedication = v),
+              activeColor: const Color(0xFFB6F36B),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _SettingCard(
+            title: 'Daily tracking reminder',
+            description: 'Remind to log symptoms each day',
+            child: SwitchListTile(
+              value: _notifDaily,
+              onChanged: (v) => setState(() => _notifDaily = v),
+              activeColor: const Color(0xFFB6F36B),
             ),
           ),
           const SizedBox(height: 24),

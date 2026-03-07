@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../data/database.dart';
 import '../data/models.dart';
+import '../data/report_generator.dart';
 import '../widgets/custom_widgets.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -15,9 +16,11 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   final _database = PainpalDatabase.instance;
+  final _reportGenerator = ReportGenerator();
 
   late Future<List<MigraineAttack>> _migraineFuture;
   late Future<List<MriScan>> _mriFuture;
+  bool _exporting = false;
 
   @override
   void initState() {
@@ -30,11 +33,125 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _mriFuture = _database.fetchMriScans();
   }
 
+  Future<void> _exportReport(String range) async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    final now = DateTime.now();
+    DateTime start;
+    DateTime end = now;
+    String title;
+    switch (range) {
+      case 'weekly':
+        start = now.subtract(const Duration(days: 7));
+        title = 'Weekly Migraine Report';
+        break;
+      case 'monthly':
+        start = DateTime(now.year, now.month - 1, now.day);
+        title = 'Monthly Migraine Report';
+        break;
+      case 'custom':
+        final picked = await showDateRangePicker(
+          context: context,
+          firstDate: DateTime(2020),
+          lastDate: now,
+          initialDateRange: DateTimeRange(
+            start: now.subtract(const Duration(days: 30)),
+            end: now,
+          ),
+        );
+        if (picked == null) {
+          setState(() => _exporting = false);
+          return;
+        }
+        start = picked.start;
+        end = picked.end;
+        title = 'Custom Migraine Report';
+        break;
+      default:
+        setState(() => _exporting = false);
+        return;
+    }
+    try {
+      final file = await _reportGenerator.generateReport(
+        start: start,
+        end: end,
+        title: title,
+      );
+      if (!mounted) return;
+      await _reportGenerator.shareReport(file);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Report ready to share'),
+          backgroundColor: Color(0xFFB6F36B),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Export failed: $e')),
+      );
+    }
+    if (mounted) setState(() => _exporting = false);
+  }
+
+  void _showExportOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.date_range),
+              title: const Text('Weekly report'),
+              onTap: () {
+                Navigator.pop(context);
+                _exportReport('weekly');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.calendar_month),
+              title: const Text('Monthly report'),
+              onTap: () {
+                Navigator.pop(context);
+                _exportReport('monthly');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.tune),
+              title: const Text('Custom date range'),
+              onTap: () {
+                Navigator.pop(context);
+                _exportReport('custom');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Scaffold(
+      appBar: AppBar(
+        actions: [
+          IconButton(
+            icon: _exporting
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.picture_as_pdf),
+            onPressed: _exporting ? null : _showExportOptions,
+            tooltip: 'Export Report',
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
