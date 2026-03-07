@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+
+import '../data/database.dart';
 import '../data/gemini_ai_service.dart';
+import '../data/patient_chat_context.dart';
+import '../data/storage.dart';
 import '../data/voice_agent_service.dart';
 
 /// Chat message model
@@ -28,6 +32,7 @@ class ChatDialog extends StatefulWidget {
 class _ChatDialogState extends State<ChatDialog> {
   late final GeminiAiService _aiService;
   late final VoiceAgentService _voiceService;
+  late final PatientChatContext _patientContext;
   final List<ChatMessage> _messages = [];
   final TextEditingController _messageController = TextEditingController();
   bool _isLoading = false;
@@ -40,6 +45,10 @@ class _ChatDialogState extends State<ChatDialog> {
     _scrollController = ScrollController();
     _aiService = GeminiAiService();
     _voiceService = VoiceAgentService();
+    _patientContext = PatientChatContext(
+      database: PainpalDatabase.instance,
+      storage: SettingsStorage(),
+    );
     _setupVoiceAgent();
     _addInitialMessage();
   }
@@ -118,8 +127,12 @@ class _ChatDialogState extends State<ChatDialog> {
     _scrollToBottom();
 
     try {
-      // Get AI response
-      final response = await _aiService.sendMessage(text);
+      // Load this patient's recorded data so the AI can answer questions about it
+      final patientContext = await _patientContext.buildContext();
+      final response = await _aiService.sendMessage(
+        text,
+        patientContext: patientContext.isNotEmpty ? patientContext : null,
+      );
 
       setState(() {
         _messages.add(

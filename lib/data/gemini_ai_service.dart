@@ -30,20 +30,31 @@ class GeminiAiService {
     _isInitialized = true;
   }
 
-  /// Send a message to Gemini AI and get a response
-  Future<String> sendMessage(String userMessage) async {
+  /// Send a message to Gemini AI and get a response.
+  /// [patientContext] Optional summary of this patient's records (attacks, MRI, etc.)
+  /// so the AI can answer questions about "my migraines", "my last attack", etc.
+  Future<String> sendMessage(String userMessage, {String? patientContext}) async {
     if (!_isInitialized) {
       _initializeModel();
     }
 
     try {
-      // Add system context to the message
-      final systemContext =
-          '''You are Painpal AI, a helpful healthcare assistant specializing in migraine support and pain management. 
+      // Build system prompt; include patient data when provided
+      final baseInstructions = '''
+You are Painpal AI, a helpful healthcare assistant specializing in migraine support and pain management. 
 You provide compassionate, evidence-based information about migraine symptoms, triggers, prevention, pain management techniques, and emotional support.
 Always be empathetic, concise, and encourage professional consultation. If asked about something outside your domain, politely redirect to migraine and pain management.
+''';
+      final patientSection = patientContext != null && patientContext.isNotEmpty
+          ? '''
+Below is this patient's own recorded data. Use it ONLY to answer questions about their history (e.g. "my last attack", "my migraines", "my MRI results"). Do not invent or assume data; if something is not in the data, say so.
 
-User: $userMessage''';
+Patient's recorded data:
+$patientContext
+
+'''
+          : '';
+      final systemContext = '$baseInstructions$patientSection\nUser: $userMessage';
 
       final response = await _chatSession.sendMessage(
         Content.text(systemContext),
