@@ -4,8 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'auth_models.dart';
 import 'backend_config.dart';
+import 'environment.dart';
 
-/// Authentication service for handling user login, registration, and token management
+/// Authentication service for handling user login, registration, and token management.
+/// Uses the backend API (configured in Settings → Base URL); the backend connects to MongoDB Atlas.
 class AuthService {
   AuthService({http.Client? client})
       : _client = client ?? http.Client();
@@ -15,6 +17,7 @@ class AuthService {
   static const String _userKey = 'user_data';
   static const String _patientProfileKey = 'patient_profile';
   static const String _doctorProfileKey = 'doctor_profile';
+  static const String _baseUrlKey = 'base_url';
 
   /// Current authenticated user
   User? _currentUser;
@@ -50,10 +53,18 @@ class AuthService {
     }
   }
 
+  /// Resolves the backend base URL (from Settings or default). Use this for API calls.
+  Future<String> getBaseUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(_baseUrlKey);
+    if (stored != null && stored.trim().isNotEmpty) return stored.trim();
+    return Environment.getApiBaseUrl();
+  }
+
   /// Login with email and password
   Future<LoginResponse> login(String email, String password) async {
-    final uri = Uri.parse(
-        '${BackendConfig.mongoDbApiUrl}${BackendConfig.loginEndpoint}');
+    final baseUrl = await getBaseUrl();
+    final uri = Uri.parse('$baseUrl${BackendConfig.loginEndpoint}');
 
     final response = await _client.post(
       uri,
@@ -84,8 +95,8 @@ class AuthService {
     String? name,
     DateTime? dateOfBirth,
   }) async {
-    final uri = Uri.parse(
-        '${BackendConfig.mongoDbApiUrl}${BackendConfig.registerEndpoint}');
+    final baseUrl = await getBaseUrl();
+    final uri = Uri.parse('$baseUrl${BackendConfig.registerEndpoint}');
 
     final request = RegisterRequest(
       email: email,
@@ -122,8 +133,8 @@ class AuthService {
       throw AuthException('No token available to refresh', '');
     }
 
-    final uri = Uri.parse(
-        '${BackendConfig.mongoDbApiUrl}${BackendConfig.refreshTokenEndpoint}');
+    final baseUrl = await getBaseUrl();
+    final uri = Uri.parse('$baseUrl${BackendConfig.refreshTokenEndpoint}');
 
     final response = await _client.post(
       uri,

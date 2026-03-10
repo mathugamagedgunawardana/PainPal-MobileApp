@@ -1,4 +1,5 @@
-/// Backend configuration for API requests
+/// Backend configuration for API requests.
+/// The app talks to the backend API (Next.js); the backend connects to MongoDB Atlas via DATABASE_URL.
 class BackendConfig {
   /// Request timeout duration
   static const Duration requestTimeout = Duration(seconds: 30);
@@ -13,7 +14,8 @@ class BackendConfig {
   static const String summaryEndpoint = '/api/summary';
   static const String mriPredictEndpoint = '/api/mri/predict';
 
-  /// MongoDB API URL
+  /// Default backend API URL when none is set in Settings.
+  /// Use Environment.getApiBaseUrl() for env-aware default.
   static const String mongoDbApiUrl = 'http://localhost:3000';
 
   /// Auth endpoints

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../data/database.dart';
 import '../data/models.dart';
 import '../data/report_generator.dart';
+import '../widgets/app_illustrations.dart';
 import '../widgets/custom_widgets.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -170,22 +171,33 @@ class _HistoryScreenState extends State<HistoryScreen> {
               }
               if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return Center(
-                  child: Column(
-                    children: [
-                      Icon(Icons.inbox, size: 64, color: Colors.grey.shade600),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No migraine records yet',
-                        style: theme.textTheme.bodyLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Start logging your attacks to see them here',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.grey.shade400,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        EmptyStateIllustration(
+                          icon: Icons.history_rounded,
+                          size: 90,
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 20),
+                        Text(
+                          'No migraine records yet',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Start logging your attacks to see them here',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   ),
                 );
               }
@@ -223,22 +235,33 @@ class _HistoryScreenState extends State<HistoryScreen> {
               }
               if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return Center(
-                  child: Column(
-                    children: [
-                      Icon(Icons.image, size: 64, color: Colors.grey.shade600),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No MRI scans yet',
-                        style: theme.textTheme.bodyLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Upload your brain MRI scans to get analysis',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.grey.shade400,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        EmptyStateIllustration(
+                          icon: Icons.photo_library_rounded,
+                          size: 90,
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 20),
+                        Text(
+                          'No MRI scans yet',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Upload your brain MRI scans to get analysis',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   ),
                 );
               }

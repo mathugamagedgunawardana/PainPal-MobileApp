@@ -12,8 +12,8 @@ class AppTheme {
   static const Color darkSurface = Color(0xFF171B22);
   static const Color darkCard = Color(0xFF1E2329);
 
-  // Light theme colors (soft, airy like reference)
-  static const Color lightBackground = Color(0xFFF0F7FF);
+  // Light theme colors (soft, airy like reference - pastel blue)
+  static const Color lightBackground = Color(0xFFE8F4FD);
   static const Color lightSurface = Color(0xFFFFFFFF);
   static const Color lightCard = Color(0xFFFFFFFF);
 

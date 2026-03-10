@@ -500,7 +500,25 @@ lib/
 
 ---
 
-## 🌐 API Integration
+## 🌐 API Integration & MongoDB Atlas
+
+The Flutter app **does not connect to MongoDB directly**. It talks to your **backend API** (e.g. the Next.js app in `../LLM/client`). The backend uses **Prisma** and connects to **MongoDB Atlas** via `DATABASE_URL`.
+
+### Connecting to MongoDB Atlas
+
+1. **Backend (e.g. `LLM/client`)**  
+   - Copy `LLM/client/.env.example` to `.env`.  
+   - Set `DATABASE_URL` to your MongoDB Atlas connection string (Atlas → Cluster → Connect → “Connect your application”).  
+   - Run the backend (e.g. `npm run dev`). The backend uses this URL to read/write data.
+
+2. **Flutter app**  
+   - Open **Settings** → **API Configuration**.  
+   - Set **API Base URL** to your backend base URL (e.g. `http://localhost:3000` for local dev, or your deployed backend URL).  
+   - Leave blank to use the default for the current environment (see `lib/data/environment.dart`).
+
+3. **Local development**  
+   - Backend: `http://localhost:3000` (or your dev server URL).  
+   - On Android emulator use `http://10.0.2.2:3000` instead of `localhost`.
 
 ### Backend Requirements
 

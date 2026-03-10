@@ -1,5 +1,6 @@
-/// Environment configuration for the app
-/// This file manages different environments (development, staging, production)
+/// Environment configuration for the app.
+/// The Flutter app connects to the backend API (not directly to MongoDB).
+/// The backend uses MongoDB Atlas; set DATABASE_URL in the backend .env.
 class Environment {
   static const String development = 'development';
   static const String staging = 'staging';
@@ -11,7 +12,8 @@ class Environment {
     defaultValue: development,
   );
 
-  /// Get API base URL based on environment
+  /// Default backend API base URL (backend connects to MongoDB Atlas).
+  /// Users can override this in Settings → Base URL.
   static String getApiBaseUrl() {
     switch (currentEnvironment) {
       case production:
@@ -23,12 +25,6 @@ class Environment {
         return 'http://localhost:3000';
     }
   }
-
-  /// MongoDB connection URL - should be set via environment variables
-  static const String mongoDbUrl = String.fromEnvironment(
-    'DATABASE_URL',
-    defaultValue: 'mongodb+srv://ranith:wuzTNpaR14NMMGRZ@painpal.vo4hinw.mongodb.net/painpal?retryWrites=true&w=majority&appName=PainPal',
-  );
 
   /// Enable debug logging
   static bool get enableDebugLogging => currentEnvironment != production;

@@ -150,7 +150,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               controller: _baseUrlController,
               keyboardType: TextInputType.url,
               decoration: InputDecoration(
-                hintText: 'https://your-backend-host',
+                hintText: 'http://localhost:3000 or your backend URL',
                 prefixIcon: Icon(
                   Icons.link,
                   color: theme.colorScheme.primary,

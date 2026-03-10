@@ -10,7 +10,7 @@ import 'screens/home_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: ".env");  
 
   // Initialize local notifications in background so app opens immediately
   NotificationService.instance.initialize();

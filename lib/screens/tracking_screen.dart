@@ -6,6 +6,7 @@ import '../data/medication_suggestions.dart';
 import '../data/models.dart';
 import '../data/storage.dart';
 import '../data/trigger_constants.dart';
+import '../widgets/app_illustrations.dart';
 import '../widgets/custom_widgets.dart';
 
 /// Comprehensive migraine tracking screen with statistics, trends, and insights
@@ -525,16 +526,21 @@ class _TrackingScreenState extends State<TrackingScreen> {
       );
     }
     return Card(
-      color: const Color(0xFF171B22),
+      elevation: isDark ? 0 : 2,
+      shadowColor: Colors.black12,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.5)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: FilledButton.icon(
           onPressed: _startQuickAttack,
-          icon: const Icon(Icons.play_arrow),
+          icon: const Icon(Icons.play_arrow_rounded),
           label: const Text('Start Attack'),
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFFB6F36B),
-            foregroundColor: Colors.black,
+            backgroundColor: isDark ? const Color(0xFFB6F36B) : AppIllustrationColors.pastelBlueDark,
+            foregroundColor: isDark ? Colors.black : Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 14),
           ),
         ),
@@ -548,47 +554,45 @@ class _TrackingScreenState extends State<TrackingScreen> {
     }
 
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.analytics_outlined,
-              size: 80,
-              color: Colors.grey.shade600,
+            EmptyStateIllustration(
+              icon: Icons.assessment_rounded,
+              size: 110,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
             Text(
               'No Tracking Data Yet',
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurface,
               ),
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Text(
               'Start logging your migraine attacks to see detailed statistics, patterns, and insights here.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyLarge?.copyWith(
-                color: theme.brightness == Brightness.dark
-                    ? Colors.grey.shade400
-                    : Colors.grey.shade600,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
             _buildQuickAttackCard(theme),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
+            const SizedBox(height: 20),
+            FilledButton.icon(
               onPressed: () {
                 setState(() {
                   _showForm = true;
                 });
               },
-              icon: const Icon(Icons.edit_note),
-              label: const Text('Log Your First Attack (full form)'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                side: const BorderSide(color: Color(0xFFB6F36B)),
+              icon: const Icon(Icons.edit_note_rounded, size: 20),
+              label: const Text('Log your first attack (full form)'),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
               ),
             ),
           ],
