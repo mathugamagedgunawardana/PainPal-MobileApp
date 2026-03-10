@@ -158,17 +158,19 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
     });
 
     try {
-      final baseUrl = await _storage.readBaseUrl();
-      if (baseUrl == null || baseUrl.isEmpty) {
-        throw Exception('API base URL is missing. Set it in Settings.');
-      }
       final patientId = await _storage.readPatientId();
 
       final attack = _buildAttack(draftOnly: false);
-      final api = ApiClient(baseUrl: baseUrl);
-      final result = await api.submitMigraineAttack(
-        attack.copyWith(patientId: patientId),
-      );
+      MigraineApiResponse? result;
+
+      // If an API base URL is configured, send to backend for AI summary.
+      final baseUrl = await _storage.readBaseUrl();
+      if (baseUrl != null && baseUrl.isNotEmpty) {
+        final api = ApiClient(baseUrl: baseUrl);
+        result = await api.submitMigraineAttack(
+          attack.copyWith(patientId: patientId),
+        );
+      }
 
       final saved = MigraineAttack(
         durationHours: attack.durationHours,
@@ -193,12 +195,12 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
         conscience: attack.conscience,
         paresthesia: attack.paresthesia,
         dpf: attack.dpf,
-        type: result.predictedType,
+        type: result?.predictedType,
         patientId: patientId,
         attackId: attack.attackId,
         age: attack.age,
         timestamp: DateTime.now(),
-        summary: result.summary,
+        summary: result?.summary,
         triggers: attack.triggers,
         medications: attack.medications,
       );
@@ -241,8 +243,6 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Log Migraine Attack'),
@@ -559,7 +559,7 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
                 children: [
                   MigraineButton(
                     onPressed: _submitting ? null : () => _submit(),
-                    label: 'Submit to backend',
+                    label: 'Save attack',
                     icon: Icons.cloud_upload,
                     isLoading: _submitting,
                   ),

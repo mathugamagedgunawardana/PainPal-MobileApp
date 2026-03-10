@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../data/auth_service.dart';
 import '../data/theme_provider.dart';
 import '../widgets/chat_widget.dart';
+import 'doctor_chat_screen.dart';
 import 'history_screen.dart';
 import 'mri_upload_screen.dart';
 import 'overview_screen.dart';
@@ -49,6 +51,27 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.forum),
+            tooltip: 'Doctor chat',
+            onPressed: () {
+              // Requires AuthService to be provided at the app level.
+              final auth = context.read<AuthService>();
+              if (!auth.isAuthenticated) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please log in before starting doctor chat.'),
+                  ),
+                );
+                return;
+              }
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const DoctorChatScreen(),
+                ),
+              );
+            },
+          ),
           // Theme toggle button
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
