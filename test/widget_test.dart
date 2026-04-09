@@ -14,8 +14,9 @@ void main() {
   testWidgets('App loads home navigation', (WidgetTester tester) async {
     await tester.pumpWidget(const PainpalApp());
 
-    expect(find.text('Log Migraine Attack'), findsOneWidget);
-    expect(find.byIcon(Icons.edit_note), findsOneWidget);
-    expect(find.byIcon(Icons.history), findsOneWidget);
+    expect(find.text('Log attack'), findsOneWidget);
+    expect(find.byIcon(Icons.edit_note), findsWidgets);
+    expect(find.byIcon(Icons.history), findsWidgets);
+    expect(find.text('Analytics'), findsOneWidget);
   });
 }

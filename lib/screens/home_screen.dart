@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../widgets/chat_widget.dart';
+import 'analytics_screen.dart';
 import 'history_screen.dart';
 import 'migraine_form_screen.dart';
 import 'mri_upload_screen.dart';
@@ -22,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
     MigraineFormScreen(),
     MriUploadScreen(),
     HistoryScreen(),
+    AnalyticsScreen(),
     SettingsScreen(),
   ];
 
@@ -61,6 +63,10 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationDestination(
             icon: Icon(Icons.history),
             label: 'History',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.analytics_outlined),
+            label: 'Analytics',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings),
