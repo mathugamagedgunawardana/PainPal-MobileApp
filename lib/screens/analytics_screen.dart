@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../data/auth_models.dart';
 import '../data/database.dart';
-import '../data/models.dart';
+import '../data/patient_analytics_api.dart';
+import '../services/app_services.dart';
 import '../widgets/analytics_widgets.dart';
 
 class AnalyticsScreen extends StatefulWidget {
@@ -25,7 +27,25 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Future<_AnalyticsViewModel> _loadAnalytics() async {
-	await Future<void>.delayed(const Duration(milliseconds: 600));
+	await Future<void>.delayed(const Duration(milliseconds: 200));
+	final auth = AppServices.auth;
+	if (auth.isAuthenticated && auth.currentUser?.role == UserRole.patient) {
+	  try {
+		final base = await auth.resolveApiBaseUrl();
+		final token = auth.authToken;
+		if (token != null && token.isNotEmpty) {
+		  final remote = await fetchPatientAnalytics(
+			baseUrl: base,
+			bearerToken: token,
+		  );
+		  return _viewModelFromBackend(remote);
+		}
+	  } catch (_) {
+		// Fall back to on-device SQLite below.
+	  }
+	}
+
+	await Future<void>.delayed(const Duration(milliseconds: 400));
 	final attacks = await _database.fetchMigraineAttacks();
 
 	final cutoff = DateTime.now().subtract(Duration(days: _rangeDays));
@@ -76,26 +96,29 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 	  (current, next) => current.percent >= next.percent ? current : next,
 	);
 
-	return _AnalyticsViewModel(
-	  totalMigraines: totalMigraines,
-	  averageIntensity: avgIntensity,
-	  averageDuration: avgDuration,
-	  lowPainCount: low,
-	  mediumPainCount: medium,
-	  highPainCount: high,
-	  trend: trendPoints,
-	  triggers: triggers,
-	  medications: medications,
-	  aiSummary:
+    return _AnalyticsViewModel(
+      totalMigraines: totalMigraines,
+      averageIntensity: avgIntensity,
+      averageDuration: avgDuration,
+      lowPainCount: low,
+      mediumPainCount: medium,
+      highPainCount: high,
+      trend: trendPoints,
+      triggers: triggers,
+      medications: medications,
+      aiSummary:
 		  'Your migraines increased this week and are often triggered by ${mostCommonTrigger.label.toLowerCase()}.',
-	  mostCommonTrigger: mostCommonTrigger.label,
-	  warning: warning,
-	  aiInsights: _buildAiInsights(
-		trendPoints: trendPoints,
-		averageIntensity: avgIntensity,
-		averageDuration: avgDuration,
-	  ),
-	);
+      mostCommonTrigger: mostCommonTrigger.label,
+      warning: warning,
+      aiInsights: _buildAiInsights(
+        trendPoints: trendPoints,
+        averageIntensity: avgIntensity,
+        averageDuration: avgDuration,
+      ),
+      nextAttack: null,
+      nextAttackUnavailableReason: null,
+      nextAttackDisclaimer: null,
+    );
   }
 
   int get _rangeDays {
@@ -236,6 +259,121 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 	];
   }
 
+  _AnalyticsViewModel _viewModelFromBackend(PatientAnalyticsData data) {
+	var low = 0;
+	var medium = 0;
+	var high = 0;
+	for (final b in data.severityDistribution) {
+	  if (b.level <= 0) {
+		continue;
+	  }
+	  if (b.level <= 3) {
+		low += b.count;
+	  } else if (b.level <= 6) {
+		medium += b.count;
+	  } else {
+		high += b.count;
+	  }
+	}
+
+	var trendPoints = data.episodesByWeek
+		.map(
+		  (w) => TrendPoint(
+			label: w.label,
+			value: w.count,
+			isSpike: false,
+		  ),
+		)
+		.toList();
+	if (trendPoints.isNotEmpty) {
+	  final avg =
+		  trendPoints.fold<int>(0, (a, p) => a + p.value) / trendPoints.length;
+	  trendPoints = trendPoints
+		  .map(
+			(p) => TrendPoint(
+			  label: p.label,
+			  value: p.value,
+			  isSpike: p.value >= (avg + 1).ceil(),
+			),
+		  )
+		  .toList();
+	} else {
+	  trendPoints = const [
+		TrendPoint(label: 'W1', value: 0, isSpike: false),
+	  ];
+	}
+
+	final triggers = data.triggers.isEmpty
+		? _dummyTriggerData()
+		: _triggersFromServer(data.triggers);
+	final mostCommonTrigger = triggers.isEmpty
+		? 'Stress'
+		: triggers.reduce((a, b) => a.percent >= b.percent ? a : b).label;
+
+	final avgIntensity = data.avgSeverity;
+	const avgDuration = 2.0;
+	final medications = _dummyMedicationData(avgIntensity);
+	final warning = medications.any((item) => item.monthlyUses >= 11)
+		? 'You may be overusing medication. Consider discussing this with your clinician.'
+		: null;
+
+    return _AnalyticsViewModel(
+      totalMigraines: data.episodesLast30Days,
+      averageIntensity: avgIntensity,
+      averageDuration: avgDuration,
+      lowPainCount: low,
+      mediumPainCount: medium,
+      highPainCount: high,
+      trend: trendPoints,
+      triggers: triggers,
+      medications: medications,
+      aiSummary:
+		  'From your clinic record (MongoDB): ${data.episodesLast30Days} episodes in the last 30 days, '
+		  'avg severity ${avgIntensity.toStringAsFixed(1)}. '
+		  '${data.triggers.isNotEmpty ? 'Top trigger theme: ${data.triggers.first.name}.' : ''}',
+      mostCommonTrigger: mostCommonTrigger,
+      warning: warning,
+      aiInsights: _buildAiInsights(
+        trendPoints: trendPoints,
+        averageIntensity: avgIntensity,
+        averageDuration: avgDuration,
+      ),
+      nextAttack: data.nextAttack,
+      nextAttackUnavailableReason: data.nextAttackUnavailableReason,
+      nextAttackDisclaimer: data.nextAttackDisclaimer,
+    );
+  }
+
+  List<_TriggerData> _triggersFromServer(List<TriggerCount> list) {
+	final total = list.fold<int>(0, (s, t) => s + t.count);
+	if (total == 0) {
+	  return _dummyTriggerData();
+	}
+	return list
+		.map(
+		  (t) => _TriggerData(
+			label: t.name,
+			percent: ((t.count / total) * 100).round().clamp(1, 100),
+			icon: _iconForTrigger(t.name),
+		  ),
+		)
+		.toList();
+  }
+
+  IconData _iconForTrigger(String name) {
+	final n = name.toLowerCase();
+	if (n.contains('stress')) {
+	  return Icons.psychology_alt_outlined;
+	}
+	if (n.contains('sleep')) {
+	  return Icons.bedtime_outlined;
+	}
+	if (n.contains('food')) {
+	  return Icons.restaurant_outlined;
+	}
+	return Icons.blur_on;
+  }
+
   List<String> _buildAiInsights({
 	required List<TrendPoint> trendPoints,
 	required double averageIntensity,
@@ -266,17 +404,22 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   @override
   Widget build(BuildContext context) {
+	final theme = Theme.of(context);
+	final scheme = theme.colorScheme;
+	const surfaceBar = Color(0xFF171B22);
+	const accent = Color(0xFFB6F36B);
+
 	return Scaffold(
-	  backgroundColor: const Color(0xFFF2F6FB),
 	  appBar: AppBar(
-		backgroundColor: const Color(0xFFF2F6FB),
+		backgroundColor: surfaceBar,
+		foregroundColor: scheme.onSurface,
 		elevation: 0,
 		scrolledUnderElevation: 0,
-		title: const Text(
+		title: Text(
 		  'Analytics',
-		  style: TextStyle(
-			color: Color(0xFF17324D),
+		  style: theme.textTheme.titleLarge?.copyWith(
 			fontWeight: FontWeight.w800,
+			color: scheme.onSurface,
 		  ),
 		),
 	  ),
@@ -288,12 +431,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 		  }
 
 		  if (!snapshot.hasData) {
-			return const Center(child: Text('No analytics yet'));
+			return Center(
+			  child: Text(
+				'No analytics yet',
+				style: theme.textTheme.bodyLarge?.copyWith(
+				  color: scheme.onSurfaceVariant,
+				),
+			  ),
+			);
 		  }
 
 		  final data = snapshot.data!;
 
 		  return RefreshIndicator(
+			color: accent,
+			backgroundColor: surfaceBar,
 			onRefresh: () async {
 			  setState(() {
 				_analyticsFuture = _loadAnalytics();
@@ -312,11 +464,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 					child: Column(
 					  crossAxisAlignment: CrossAxisAlignment.start,
 					  children: [
-						const Text(
+						Text(
 						  'This month at a glance',
-						  style: TextStyle(
+						  style: theme.textTheme.titleMedium?.copyWith(
 							fontSize: 17,
-							color: Color(0xFF123E67),
+							color: scheme.onSurface,
 							fontWeight: FontWeight.w800,
 						  ),
 						),
@@ -344,22 +496,127 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 						  ],
 						),
 						const SizedBox(height: 14),
+						if (data.nextAttackUnavailableReason != null &&
+							data.nextAttackUnavailableReason!.trim().isNotEmpty &&
+							data.nextAttack == null) ...[
+						  Container(
+							width: double.infinity,
+							padding: const EdgeInsets.all(12),
+							decoration: BoxDecoration(
+							  color: Colors.grey.withValues(alpha: 0.15),
+							  borderRadius: BorderRadius.circular(12),
+							  border: Border.all(
+								color: Colors.grey.shade600.withValues(alpha: 0.5),
+							  ),
+							),
+							child: Column(
+							  crossAxisAlignment: CrossAxisAlignment.start,
+							  children: [
+								Text(
+								  'Next attack forecast',
+								  style: theme.textTheme.titleSmall?.copyWith(
+									fontWeight: FontWeight.w800,
+									color: scheme.onSurface,
+								  ),
+								),
+								const SizedBox(height: 6),
+								Text(
+								  data.nextAttackUnavailableReason!,
+								  style: theme.textTheme.bodySmall?.copyWith(
+									color: scheme.onSurfaceVariant,
+								  ),
+								),
+							  ],
+							),
+						  ),
+						  const SizedBox(height: 14),
+						],
+						if (data.nextAttack != null) ...[
+						  Container(
+							width: double.infinity,
+							padding: const EdgeInsets.all(12),
+							decoration: BoxDecoration(
+							  color: Colors.amber.withValues(alpha: 0.12),
+							  borderRadius: BorderRadius.circular(12),
+							  border: Border.all(
+								color: Colors.amber.shade700.withValues(alpha: 0.4),
+							  ),
+							),
+							child: Column(
+							  crossAxisAlignment: CrossAxisAlignment.start,
+							  children: [
+								Row(
+								  children: [
+									Icon(Icons.upcoming_outlined, color: Colors.amber.shade300, size: 20),
+									const SizedBox(width: 8),
+									Text(
+									  'Next attack (forecast)',
+									  style: theme.textTheme.titleSmall?.copyWith(
+										fontWeight: FontWeight.w800,
+										color: Colors.amber.shade100,
+									  ),
+									),
+								  ],
+								),
+								const SizedBox(height: 6),
+								Text(
+								  data.nextAttack!.predictedTypeDisplay,
+								  style: theme.textTheme.titleMedium?.copyWith(
+									fontWeight: FontWeight.w800,
+									color: scheme.onSurface,
+								  ),
+								),
+								if (data.nextAttack!.duration != null ||
+									data.nextAttack!.frequency != null ||
+									data.nextAttack!.intensity != null) ...[
+								  const SizedBox(height: 6),
+								  Text(
+									[
+									  if (data.nextAttack!.duration != null)
+										'Est. ${data.nextAttack!.duration!.toStringAsFixed(1)} h',
+									  if (data.nextAttack!.frequency != null)
+										'Freq ${data.nextAttack!.frequency!.toStringAsFixed(1)}',
+									  if (data.nextAttack!.intensity != null)
+										'Intensity ${data.nextAttack!.intensity!.toStringAsFixed(1)}',
+									].join(' · '),
+									style: theme.textTheme.bodySmall?.copyWith(color: accent),
+								  ),
+								],
+								if (data.nextAttackDisclaimer != null &&
+									data.nextAttackDisclaimer!.isNotEmpty) ...[
+								  const SizedBox(height: 8),
+								  Text(
+									data.nextAttackDisclaimer!,
+									style: theme.textTheme.bodySmall?.copyWith(
+									  color: scheme.onSurfaceVariant,
+									  fontSize: 11,
+									),
+								  ),
+								],
+							  ],
+							),
+						  ),
+						  const SizedBox(height: 14),
+						],
 						Container(
 						  padding: const EdgeInsets.all(12),
 						  decoration: BoxDecoration(
-							color: const Color(0xFFE9F3FF),
+							color: accent.withValues(alpha: 0.12),
 							borderRadius: BorderRadius.circular(12),
+							border: Border.all(
+							  color: accent.withValues(alpha: 0.35),
+							),
 						  ),
 						  child: Row(
 							crossAxisAlignment: CrossAxisAlignment.start,
 							children: [
-							  const Icon(Icons.auto_awesome, color: Color(0xFF1D5D99)),
+							  Icon(Icons.auto_awesome, color: accent),
 							  const SizedBox(width: 10),
 							  Expanded(
 								child: Text(
 								  data.aiSummary,
-								  style: const TextStyle(
-									color: Color(0xFF1E476D),
+								  style: theme.textTheme.bodyMedium?.copyWith(
+									color: scheme.onSurface,
 									fontWeight: FontWeight.w600,
 								  ),
 								),
@@ -388,12 +645,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 					  children: [
 						Row(
 						  children: [
-							const Expanded(
+							Expanded(
 							  child: Text(
 								'Migraine trends',
-								style: TextStyle(
+								style: theme.textTheme.titleSmall?.copyWith(
 								  fontSize: 16,
-								  color: Color(0xFF17324D),
+								  color: scheme.onSurface,
 								  fontWeight: FontWeight.w800,
 								),
 							  ),
@@ -413,10 +670,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 						MiniLineChart(points: data.trend),
 						if (data.trend.any((point) => point.isSpike)) ...[
 						  const SizedBox(height: 8),
-						  const Text(
+						  Text(
 							'Red points show spikes.',
-							style: TextStyle(
-							  color: Color(0xFFB91C1C),
+							style: theme.textTheme.labelMedium?.copyWith(
+							  color: scheme.error,
 							  fontSize: 12,
 							  fontWeight: FontWeight.w700,
 							),
@@ -430,11 +687,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 					child: Column(
 					  crossAxisAlignment: CrossAxisAlignment.start,
 					  children: [
-						const Text(
+						Text(
 						  'Pain and duration',
-						  style: TextStyle(
+						  style: theme.textTheme.titleSmall?.copyWith(
 							fontSize: 16,
-							color: Color(0xFF17324D),
+							color: scheme.onSurface,
 							fontWeight: FontWeight.w800,
 						  ),
 						),
@@ -447,8 +704,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 						const SizedBox(height: 12),
 						Text(
 						  'Average duration per attack: ${data.averageDuration.toStringAsFixed(1)} hours',
-						  style: const TextStyle(
-							color: Color(0xFF2E4A62),
+						  style: theme.textTheme.bodyMedium?.copyWith(
+							color: scheme.onSurfaceVariant,
 							fontWeight: FontWeight.w700,
 						  ),
 						),
@@ -460,11 +717,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 					child: Column(
 					  crossAxisAlignment: CrossAxisAlignment.start,
 					  children: [
-						const Text(
+						Text(
 						  'Trigger insights',
-						  style: TextStyle(
+						  style: theme.textTheme.titleSmall?.copyWith(
 							fontSize: 16,
-							color: Color(0xFF17324D),
+							color: scheme.onSurface,
 							fontWeight: FontWeight.w800,
 						  ),
 						),
@@ -489,11 +746,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 					child: Column(
 					  crossAxisAlignment: CrossAxisAlignment.start,
 					  children: [
-						const Text(
+						Text(
 						  'Medication effectiveness',
-						  style: TextStyle(
+						  style: theme.textTheme.titleSmall?.copyWith(
 							fontSize: 16,
-							color: Color(0xFF17324D),
+							color: scheme.onSurface,
 							fontWeight: FontWeight.w800,
 						  ),
 						),
@@ -514,20 +771,25 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 						  Container(
 							padding: const EdgeInsets.all(12),
 							decoration: BoxDecoration(
-							  color: const Color(0xFFFFF3E8),
+							  color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
 							  borderRadius: BorderRadius.circular(12),
-							  border: Border.all(color: const Color(0xFFFFD6AE)),
+							  border: Border.all(
+								color: const Color(0xFFF59E0B).withValues(alpha: 0.45),
+							  ),
 							),
 							child: Row(
 							  crossAxisAlignment: CrossAxisAlignment.start,
 							  children: [
-								const Icon(Icons.warning_amber_rounded, color: Color(0xFFB45309)),
+								const Icon(
+								  Icons.warning_amber_rounded,
+								  color: Color(0xFFFBBF24),
+								),
 								const SizedBox(width: 10),
 								Expanded(
 								  child: Text(
 									data.warning!,
-									style: const TextStyle(
-									  color: Color(0xFF7C2D12),
+									style: theme.textTheme.bodyMedium?.copyWith(
+									  color: const Color(0xFFFDE68A),
 									  fontWeight: FontWeight.w600,
 									),
 								  ),
@@ -543,11 +805,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 					child: Column(
 					  crossAxisAlignment: CrossAxisAlignment.start,
 					  children: [
-						const Text(
+						Text(
 						  'AI insights',
-						  style: TextStyle(
+						  style: theme.textTheme.titleSmall?.copyWith(
 							fontSize: 16,
-							color: Color(0xFF17324D),
+							color: scheme.onSurface,
 							fontWeight: FontWeight.w800,
 						  ),
 						),
@@ -587,6 +849,8 @@ class _SummaryMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+	final theme = Theme.of(context);
+	final scheme = theme.colorScheme;
 	return Column(
 	  crossAxisAlignment: CrossAxisAlignment.start,
 	  children: [
@@ -594,17 +858,17 @@ class _SummaryMetric extends StatelessWidget {
 		  value,
 		  maxLines: 1,
 		  overflow: TextOverflow.ellipsis,
-		  style: const TextStyle(
+		  style: theme.textTheme.titleMedium?.copyWith(
 			fontSize: 20,
 			fontWeight: FontWeight.w800,
-			color: Color(0xFF0C3E66),
+			color: scheme.onSurface,
 		  ),
 		),
 		const SizedBox(height: 3),
 		Text(
 		  label,
-		  style: const TextStyle(
-			color: Color(0xFF607A92),
+		  style: theme.textTheme.labelMedium?.copyWith(
+			color: scheme.onSurfaceVariant,
 			fontSize: 12,
 			fontWeight: FontWeight.w600,
 		  ),
@@ -629,6 +893,9 @@ class _AnalyticsViewModel {
 	required this.mostCommonTrigger,
 	required this.aiInsights,
 	this.warning,
+	this.nextAttack,
+	this.nextAttackUnavailableReason,
+	this.nextAttackDisclaimer,
   });
 
   final int totalMigraines;
@@ -644,6 +911,9 @@ class _AnalyticsViewModel {
   final String mostCommonTrigger;
   final List<String> aiInsights;
   final String? warning;
+  final PatientNextAttackData? nextAttack;
+  final String? nextAttackUnavailableReason;
+  final String? nextAttackDisclaimer;
 }
 
 class _AttackSample {

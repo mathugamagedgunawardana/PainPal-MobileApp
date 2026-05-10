@@ -234,7 +234,7 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Log Migraine Attack'),
+        title: const Text('Log Migraine Attac'),
         elevation: 0,
         backgroundColor: const Color(0xFF171B22),
       ),

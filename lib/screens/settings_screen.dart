@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../data/storage.dart';
+import '../services/app_services.dart';
 import '../widgets/custom_widgets.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({super.key, this.onSignedOut});
+
+  final VoidCallback? onSignedOut;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -34,6 +37,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _loading = false;
     });
+  }
+
+  Future<void> _signOut() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign out'),
+        content: const Text(
+          'You will need to sign in again to use the app.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) {
+      return;
+    }
+    await AppServices.auth.logout();
+    widget.onSignedOut?.call();
   }
 
   Future<void> _save() async {
@@ -82,6 +112,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          if (widget.onSignedOut != null) ...[
+            SectionHeader(
+              title: 'Account',
+              subtitle: 'Sign out of Painpal on this device',
+              illustrationIcon: Icons.person_outline,
+            ),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.grey.shade900.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade700),
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (AppServices.auth.currentUser != null &&
+                      AppServices.auth.currentUser!.email.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        'Signed in as ${AppServices.auth.currentUser!.email}',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey.shade300,
+                        ),
+                      ),
+                    ),
+                  OutlinedButton.icon(
+                    onPressed: _signOut,
+                    icon: const Icon(Icons.logout),
+                    label: const Text('Sign out'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.redAccent.shade100,
+                      side: BorderSide(
+                        color: Colors.redAccent.shade200.withValues(alpha: 0.6),
+                      ),
+                      minimumSize: const Size.fromHeight(48),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 28),
+          ],
           // API SETTINGS SECTION
           SectionHeader(
             title: 'API Configuration',

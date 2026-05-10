@@ -1,5 +1,3 @@
-import 'dart:convert' as convert;
-
 /// User authentication model based on Prisma schema
 class User {
   User({
@@ -97,11 +95,12 @@ class PatientProfile {
       };
 
   static PatientProfile fromJson(Map<String, dynamic> json) {
+    final dobRaw = json['dateOfBirth'] ?? json['dob'];
     return PatientProfile(
       id: json['id'] as String,
       userId: json['userId'] as String,
       name: json['name'] as String,
-      dateOfBirth: DateTime.parse(json['dateOfBirth'] as String),
+      dateOfBirth: DateTime.parse(dobRaw as String),
       gender: json['gender'],
       phone: json['phone'],
       email: json['email'],

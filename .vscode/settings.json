@@ -1,0 +1,5 @@
+{
+  "dart.flutterSdkPath": "${env:HOME}/development/flutter",
+  "dart.flutterRunAdditionalArgs": ["--no-dds"],
+  "dart.flutterAttachAdditionalArgs": ["--no-dds"]
+}

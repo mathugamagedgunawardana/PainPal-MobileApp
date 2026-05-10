@@ -5,18 +5,16 @@
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:painpal/main.dart';
 
 void main() {
-  testWidgets('App loads home navigation', (WidgetTester tester) async {
+  testWidgets('App shows landing when not signed in', (WidgetTester tester) async {
     await tester.pumpWidget(const PainpalApp());
+    await tester.pumpAndSettle();
 
-    expect(find.text('Log attack'), findsOneWidget);
-    expect(find.byIcon(Icons.edit_note), findsWidgets);
-    expect(find.byIcon(Icons.history), findsWidgets);
-    expect(find.text('Analytics'), findsOneWidget);
+    expect(find.text('Painpal'), findsWidgets);
+    expect(find.text('Sign in'), findsOneWidget);
   });
 }

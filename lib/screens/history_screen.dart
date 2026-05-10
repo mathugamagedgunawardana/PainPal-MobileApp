@@ -2,8 +2,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import '../data/auth_models.dart';
 import '../data/database.dart';
 import '../data/models.dart';
+import '../data/patient_remote_api.dart';
+import '../services/app_services.dart';
 import '../widgets/custom_widgets.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -26,8 +29,71 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   void _reload() {
-    _migraineFuture = _database.fetchMigraineAttacks();
-    _mriFuture = _database.fetchMriScans();
+    _migraineFuture = _loadMigrainesMerged();
+    _mriFuture = _loadMriMerged();
+  }
+
+  Future<List<MigraineAttack>> _loadMigrainesMerged() async {
+    final local = await _database.fetchMigraineAttacks();
+    final auth = AppServices.auth;
+    if (!auth.isAuthenticated || auth.currentUser?.role != UserRole.patient) {
+      return local;
+    }
+    try {
+      final base = await auth.resolveApiBaseUrl();
+      final token = auth.authToken;
+      if (token == null || token.isEmpty) {
+        return local;
+      }
+      final remote = await fetchPatientMigraineEvents(
+        baseUrl: base,
+        bearerToken: token,
+      );
+      final remoteIds = remote.map((e) => e.attackId).whereType<String>().toSet();
+      final localOnly = local.where((l) {
+        final id = l.attackId;
+        if (id == null) {
+          return true;
+        }
+        return !remoteIds.contains(id);
+      });
+      return [...remote, ...localOnly];
+    } catch (_) {
+      return local;
+    }
+  }
+
+  Future<List<MriScan>> _loadMriMerged() async {
+    final local = await _database.fetchMriScans();
+    final auth = AppServices.auth;
+    if (!auth.isAuthenticated || auth.currentUser?.role != UserRole.patient) {
+      return local;
+    }
+    try {
+      final base = await auth.resolveApiBaseUrl();
+      final token = auth.authToken;
+      if (token == null || token.isEmpty) {
+        return local;
+      }
+      final remote = await fetchPatientMriScans(
+        baseUrl: base,
+        bearerToken: token,
+      );
+      if (remote.isEmpty) {
+        return local;
+      }
+      final remoteIds = remote.map((e) => e.mriId).whereType<String>().toSet();
+      final localOnly = local.where((l) {
+        final id = l.mriId;
+        if (id == null) {
+          return true;
+        }
+        return !remoteIds.contains(id);
+      });
+      return [...remote, ...localOnly];
+    } catch (_) {
+      return local;
+    }
   }
 
   @override

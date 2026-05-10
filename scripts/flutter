@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Inserts `--no-dds` for `flutter run` only (fixes flaky VM service attach on Android emulators).
+# From repo root:  export PATH="$PWD/scripts:$PATH"
+if [[ -n "${FLUTTER_ROOT:-}" && -x "${FLUTTER_ROOT}/bin/flutter" ]]; then
+  real="${FLUTTER_ROOT}/bin/flutter"
+elif [[ -x "${HOME}/development/flutter/bin/flutter" ]]; then
+  real="${HOME}/development/flutter/bin/flutter"
+elif [[ -x "${HOME}/flutter/bin/flutter" ]]; then
+  real="${HOME}/flutter/bin/flutter"
+else
+  real="$(command -v flutter || true)"
+fi
+
+if [[ -z "${real}" || ! -x "${real}" ]]; then
+  echo >&2 "flutter not found; set FLUTTER_ROOT or install ~/development/flutter"
+  exit 1
+fi
+
+if [[ "${1:-}" == "run" ]]; then
+  shift
+  exec "${real}" run --no-dds "$@"
+fi
+
+exec "${real}" "$@"

@@ -1,16 +1,52 @@
 import 'dart:convert';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'auth_models.dart';
 import 'backend_config.dart';
+import 'storage.dart';
 
 /// Authentication service for handling user login, registration, and token management
 class AuthService {
-  AuthService({http.Client? client})
-      : _client = client ?? http.Client();
+  AuthService({http.Client? client, SettingsStorage? settingsStorage})
+      : _client = client ?? http.Client(),
+        _settingsStorage = settingsStorage ?? SettingsStorage();
 
   final http.Client _client;
+  final SettingsStorage _settingsStorage;
+
+  /// API origin: app setting "API Base URL", else `API_BASE_URL` in `.env`, else [BackendConfig.mongoDbApiUrl].
+  Future<String> resolveApiBaseUrl() async {
+    final fromSettings = await _settingsStorage.readBaseUrl();
+    final s = fromSettings?.trim() ?? '';
+    String base;
+    if (s.isNotEmpty) {
+      base = s.endsWith('/') ? s.substring(0, s.length - 1) : s;
+    } else {
+      final fromEnv = dotenv.env['API_BASE_URL']?.trim();
+      if (fromEnv != null && fromEnv.isNotEmpty) {
+        base = fromEnv.endsWith('/') ? fromEnv.substring(0, fromEnv.length - 1) : fromEnv;
+      } else {
+        base = BackendConfig.mongoDbApiUrl;
+      }
+    }
+
+    // Android emulator: localhost/127.0.0.1 is the emulator itself, not the dev host.
+    // Map to 10.0.2.2 (AVD host loopback). Physical device: set LAN IP in Settings instead.
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      final parsed = Uri.tryParse(base);
+      if (parsed != null &&
+          parsed.hasAuthority &&
+          (parsed.host == 'localhost' || parsed.host == '127.0.0.1')) {
+        base = parsed.replace(host: '10.0.2.2').toString();
+      }
+    }
+
+    return base;
+  }
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'user_data';
   static const String _patientProfileKey = 'patient_profile';
@@ -52,8 +88,8 @@ class AuthService {
 
   /// Login with email and password
   Future<LoginResponse> login(String email, String password) async {
-    final uri = Uri.parse(
-        '${BackendConfig.mongoDbApiUrl}${BackendConfig.loginEndpoint}');
+    final base = await resolveApiBaseUrl();
+    final uri = Uri.parse('$base${BackendConfig.loginEndpoint}');
 
     final response = await _client.post(
       uri,
@@ -84,8 +120,8 @@ class AuthService {
     String? name,
     DateTime? dateOfBirth,
   }) async {
-    final uri = Uri.parse(
-        '${BackendConfig.mongoDbApiUrl}${BackendConfig.registerEndpoint}');
+    final base = await resolveApiBaseUrl();
+    final uri = Uri.parse('$base${BackendConfig.registerEndpoint}');
 
     final request = RegisterRequest(
       email: email,
@@ -122,8 +158,8 @@ class AuthService {
       throw AuthException('No token available to refresh', '');
     }
 
-    final uri = Uri.parse(
-        '${BackendConfig.mongoDbApiUrl}${BackendConfig.refreshTokenEndpoint}');
+    final base = await resolveApiBaseUrl();
+    final uri = Uri.parse('$base${BackendConfig.refreshTokenEndpoint}');
 
     final response = await _client.post(
       uri,

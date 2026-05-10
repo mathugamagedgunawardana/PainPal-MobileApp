@@ -3,34 +3,33 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import 'auth_service.dart';
 import 'backend_config.dart';
 import 'models.dart';
+import '../services/app_services.dart';
 
-/// Legacy API client - maintained for backward compatibility
-/// For new code, use PatientDataService instead
+/// HTTP client for Next.js APIs ([/api/summary], [/api/mri/predict], etc.).
+///
+/// Sends [AppServices.auth] JWT when the user is signed in (home tab login).
 class ApiClient {
   ApiClient({
     required this.baseUrl,
     http.Client? client,
-    dynamic authService,
+    AuthService? authService,
   })  : _client = client ?? http.Client(),
         _authService = authService;
 
   final String baseUrl;
   final http.Client _client;
-  final dynamic _authService;
+  final AuthService? _authService;
 
-  /// Get authorization headers if auth service is available
+  AuthService get _auth => _authService ?? AppServices.auth;
+
   Map<String, String> _getHeaders() {
     final headers = {'Content-Type': 'application/json'};
-    if (_authService != null) {
-      try {
-        if (_authService.isAuthenticated) {
-          headers['Authorization'] = 'Bearer ${_authService.authToken}';
-        }
-      } catch (_) {
-        // Auth service not available
-      }
+    final token = _auth.authToken;
+    if (_auth.isAuthenticated && token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
     }
     return headers;
   }
@@ -63,15 +62,9 @@ class ApiClient {
     final uri = Uri.parse('$baseUrl/api/mri/predict');
     final request = http.MultipartRequest('POST', uri);
 
-    // Add auth header if available
-    if (_authService != null) {
-      try {
-        if (_authService.isAuthenticated) {
-          request.headers['Authorization'] = 'Bearer ${_authService.authToken}';
-        }
-      } catch (_) {
-        // Auth service not available
-      }
+    final token = _auth.authToken;
+    if (_auth.isAuthenticated && token != null && token.isNotEmpty) {
+      request.headers['Authorization'] = 'Bearer $token';
     }
 
     if (patientId != null && patientId.isNotEmpty) {

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import 'screens/home_screen.dart';
+import 'screens/session_shell.dart';
+import 'services/app_services.dart';
 
 Future<void> main() async {
   // Ensure Flutter is initialized
@@ -9,6 +10,7 @@ Future<void> main() async {
 
   // Load environment variables from .env file
   await dotenv.load(fileName: ".env");
+  await AppServices.init();
 
   runApp(const PainpalApp());
 }
@@ -37,7 +39,7 @@ class PainpalApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const HomeScreen(),
+      home: const SessionShell(),
     );
   }
 }

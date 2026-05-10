@@ -179,6 +179,42 @@ class MigraineAttack {
     final map = jsonDecode(json) as Map<String, dynamic>;
     return MigraineAttack.fromDb(map);
   }
+
+  /// From `GET /api/patient/migraine-events` (`events[]` item).
+  factory MigraineAttack.fromRemoteEvent(Map<String, dynamic> json) {
+    return MigraineAttack(
+      durationHours: (json['durationHours'] as num?)?.toInt() ?? 0,
+      frequencyPerMonth: (json['frequencyPerMonth'] as num?)?.toInt() ?? 0,
+      location: json['location'] as String? ?? '',
+      character: json['character'] as String? ?? '',
+      intensity: (json['intensity'] as num?)?.toInt() ?? 0,
+      nausea: (json['nausea'] as num?)?.toInt() ?? 0,
+      vomit: (json['vomit'] as num?)?.toInt() ?? 0,
+      phonophobia: (json['phonophobia'] as num?)?.toInt() ?? 0,
+      photophobia: (json['photophobia'] as num?)?.toInt() ?? 0,
+      visual: (json['visual'] as num?)?.toInt() ?? 0,
+      sensory: (json['sensory'] as num?)?.toInt() ?? 0,
+      dysphasia: (json['dysphasia'] as num?)?.toInt() ?? 0,
+      dysarthria: (json['dysarthria'] as num?)?.toInt() ?? 0,
+      vertigo: (json['vertigo'] as num?)?.toInt() ?? 0,
+      tinnitus: (json['tinnitus'] as num?)?.toInt() ?? 0,
+      hypoacusis: (json['hypoacusis'] as num?)?.toInt() ?? 0,
+      diplopia: (json['diplopia'] as num?)?.toInt() ?? 0,
+      defect: (json['defect'] as num?)?.toInt() ?? 0,
+      ataxia: (json['ataxia'] as num?)?.toInt() ?? 0,
+      conscience: (json['conscience'] as num?)?.toInt() ?? 0,
+      paresthesia: (json['paresthesia'] as num?)?.toInt() ?? 0,
+      dpf: json['dpf'] as String? ?? '',
+      type: json['type']?.toString(),
+      patientId: null,
+      attackId: json['id']?.toString(),
+      age: null,
+      timestamp: json['timestamp'] != null
+          ? DateTime.tryParse(json['timestamp'] as String)
+          : null,
+      summary: json['summary'] as String?,
+    );
+  }
 }
 
 class MigraineApiResponse {
@@ -195,7 +231,8 @@ class MigraineApiResponse {
   static MigraineApiResponse fromJson(Map<String, dynamic> json) {
     return MigraineApiResponse(
       summary: json['summary'] as String? ?? '',
-      predictedType: json['predicted_migraine_type'] as String? ?? 'Unknown',
+      predictedType:
+          json['predicted_migraine_type']?.toString() ?? 'Unknown',
       symptomsReceived: (json['symptoms_received'] as List?)
               ?.map((e) => e.toString())
               .toList() ??
@@ -241,6 +278,19 @@ class MriScan {
           DateTime.now(),
       patientId: map['patient_id'] as String?,
       mriId: map['mri_id'] as String?,
+    );
+  }
+
+  /// From `GET /api/patient/mri-scans` (`scans[]` item); [imagePath] may be empty for cloud-only rows.
+  factory MriScan.fromRemoteJson(Map<String, dynamic> json) {
+    return MriScan(
+      imagePath: json['imagePath'] as String? ?? '',
+      prediction: json['prediction'] as String? ?? 'Pending',
+      confidence: (json['confidence'] as num?)?.toDouble(),
+      timestamp: DateTime.tryParse(json['timestamp'] as String? ?? '') ??
+          DateTime.now(),
+      patientId: json['patientId'] as String?,
+      mriId: json['id']?.toString(),
     );
   }
 }

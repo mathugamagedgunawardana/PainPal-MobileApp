@@ -2,6 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+/// Dark card surface; aligns with History / Settings / `scaffoldBackgroundColor` in the app theme.
+const _kSurface = Color(0xFF171B22);
+const _kAccent = Color(0xFFB6F36B);
+
 class AnalyticsCard extends StatelessWidget {
   const AnalyticsCard({
     super.key,
@@ -14,18 +18,19 @@ class AnalyticsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final outline = _kAccent.withValues(alpha: 0.22);
     return Container(
       width: double.infinity,
       padding: padding,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _kSurface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFDDE7F4)),
-        boxShadow: const [
+        border: Border.all(color: outline),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x140F2D4A),
+            color: Colors.black.withValues(alpha: 0.35),
             blurRadius: 16,
-            offset: Offset(0, 6),
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -48,6 +53,7 @@ class AnalyticsFilterChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -61,13 +67,15 @@ class AnalyticsFilterChips extends StatelessWidget {
                   onSelected: (_) => onSelected(option),
                   labelStyle: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: option == selected
-                        ? const Color(0xFF114D83)
-                        : const Color(0xFF385670),
+                    color: option == selected ? _kAccent : scheme.onSurfaceVariant,
                   ),
-                  selectedColor: const Color(0xFFD9ECFF),
-                  backgroundColor: const Color(0xFFF5F8FC),
-                  side: const BorderSide(color: Color(0xFFD4E1F1)),
+                  selectedColor: _kAccent.withValues(alpha: 0.2),
+                  backgroundColor: _kSurface,
+                  side: BorderSide(
+                    color: option == selected
+                        ? _kAccent.withValues(alpha: 0.5)
+                        : scheme.outline.withValues(alpha: 0.35),
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24),
                   ),
@@ -92,10 +100,11 @@ class TrendToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final options = <String>['Week', 'Month'];
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF2F7FC),
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -113,16 +122,14 @@ class TrendToggle extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: selected == option
-                        ? const Color(0xFFD9ECFF)
+                        ? _kAccent.withValues(alpha: 0.22)
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
                     option,
                     style: TextStyle(
-                      color: selected == option
-                          ? const Color(0xFF114D83)
-                          : const Color(0xFF5F7892),
+                      color: selected == option ? _kAccent : scheme.onSurfaceVariant,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -157,10 +164,17 @@ class MiniLineChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return SizedBox(
       height: 150,
       child: CustomPaint(
-        painter: _LineChartPainter(points),
+        painter: _LineChartPainter(
+          points,
+          lineColor: _kAccent,
+          spikeColor: scheme.error,
+          gridColor: scheme.outline.withValues(alpha: 0.35),
+          fillColor: _kAccent.withValues(alpha: 0.12),
+        ),
         child: Padding(
           padding: const EdgeInsets.only(top: 124, left: 6, right: 6),
           child: Row(
@@ -171,9 +185,9 @@ class MiniLineChart extends StatelessWidget {
                     child: Text(
                       point.label,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 10,
-                        color: Color(0xFF6A8097),
+                        color: scheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -188,9 +202,19 @@ class MiniLineChart extends StatelessWidget {
 }
 
 class _LineChartPainter extends CustomPainter {
-  _LineChartPainter(this.points);
+  _LineChartPainter(
+    this.points, {
+    required this.lineColor,
+    required this.spikeColor,
+    required this.gridColor,
+    required this.fillColor,
+  });
 
   final List<TrendPoint> points;
+  final Color lineColor;
+  final Color spikeColor;
+  final Color gridColor;
+  final Color fillColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -204,7 +228,7 @@ class _LineChartPainter extends CustomPainter {
         .fold<int>(1, (current, value) => math.max(current, value));
 
     final gridPaint = Paint()
-      ..color = const Color(0xFFDDE7F4)
+      ..color = gridColor
       ..strokeWidth = 1;
     for (var i = 0; i < 4; i++) {
       final y = chartHeight * (i / 3);
@@ -234,14 +258,14 @@ class _LineChartPainter extends CustomPainter {
     canvas.drawPath(
       fillPath,
       Paint()
-        ..color = const Color(0xFF3B82F6).withValues(alpha: 0.12)
+        ..color = fillColor
         ..style = PaintingStyle.fill,
     );
 
     canvas.drawPath(
       linePath,
       Paint()
-        ..color = const Color(0xFF3B82F6)
+        ..color = lineColor
         ..strokeWidth = 3
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round,
@@ -249,7 +273,7 @@ class _LineChartPainter extends CustomPainter {
 
     for (var i = 0; i < pointsOffset.length; i++) {
       final isSpike = points[i].isSpike;
-      final color = isSpike ? const Color(0xFFEF4444) : const Color(0xFF3B82F6);
+      final color = isSpike ? spikeColor : lineColor;
       canvas.drawCircle(pointsOffset[i], isSpike ? 5.5 : 4.5, Paint()..color = color);
       canvas.drawCircle(
         pointsOffset[i],
@@ -261,7 +285,11 @@ class _LineChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _LineChartPainter oldDelegate) {
-    return oldDelegate.points != points;
+    return oldDelegate.points != points ||
+        oldDelegate.lineColor != lineColor ||
+        oldDelegate.spikeColor != spikeColor ||
+        oldDelegate.gridColor != gridColor ||
+        oldDelegate.fillColor != fillColor;
   }
 }
 
@@ -283,11 +311,26 @@ class DistributionBars extends StatelessWidget {
 
     return Row(
       children: [
-        _IntensityBar(label: 'Low', value: low, maxValue: maxValue, color: const Color(0xFF93C5FD)),
+        _IntensityBar(
+          label: 'Low',
+          value: low,
+          maxValue: maxValue,
+          color: _kAccent.withValues(alpha: 0.35),
+        ),
         const SizedBox(width: 12),
-        _IntensityBar(label: 'Medium', value: medium, maxValue: maxValue, color: const Color(0xFF60A5FA)),
+        _IntensityBar(
+          label: 'Medium',
+          value: medium,
+          maxValue: maxValue,
+          color: _kAccent.withValues(alpha: 0.58),
+        ),
         const SizedBox(width: 12),
-        _IntensityBar(label: 'High', value: high, maxValue: maxValue, color: const Color(0xFF2563EB)),
+        _IntensityBar(
+          label: 'High',
+          value: high,
+          maxValue: maxValue,
+          color: _kAccent,
+        ),
       ],
     );
   }
@@ -308,6 +351,7 @@ class _IntensityBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final ratio = value / maxValue;
     return Expanded(
       child: Column(
@@ -331,15 +375,15 @@ class _IntensityBar extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF5F7892),
+            style: TextStyle(
+              color: scheme.onSurfaceVariant,
               fontWeight: FontWeight.w600,
             ),
           ),
           Text(
             '$value',
-            style: const TextStyle(
-              color: Color(0xFF163C60),
+            style: TextStyle(
+              color: scheme.onSurface,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -363,27 +407,28 @@ class TriggerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFD),
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFDDE7F4)),
+        border: Border.all(color: _kAccent.withValues(alpha: 0.18)),
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 16,
-            backgroundColor: const Color(0xFFD9ECFF),
-            child: Icon(icon, size: 16, color: const Color(0xFF114D83)),
+            backgroundColor: _kAccent.withValues(alpha: 0.18),
+            child: Icon(icon, size: 16, color: _kAccent),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF244764),
+                color: scheme.onSurface,
               ),
             ),
           ),
@@ -391,7 +436,7 @@ class TriggerTile extends StatelessWidget {
             '$percent%',
             style: const TextStyle(
               fontWeight: FontWeight.w800,
-              color: Color(0xFF114D83),
+              color: _kAccent,
             ),
           ),
         ],
@@ -414,6 +459,7 @@ class MedicationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -422,9 +468,9 @@ class MedicationTile extends StatelessWidget {
             Expanded(
               child: Text(
                 name,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF234A67),
+                  color: scheme.onSurface,
                 ),
               ),
             ),
@@ -432,7 +478,7 @@ class MedicationTile extends StatelessWidget {
               '$successRate% relief',
               style: const TextStyle(
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF114D83),
+                color: _kAccent,
               ),
             ),
           ],
@@ -443,15 +489,15 @@ class MedicationTile extends StatelessWidget {
           child: LinearProgressIndicator(
             minHeight: 8,
             value: successRate / 100,
-            backgroundColor: const Color(0xFFE4EDF8),
-            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
+            backgroundColor: scheme.outline.withValues(alpha: 0.25),
+            valueColor: const AlwaysStoppedAnimation<Color>(_kAccent),
           ),
         ),
         const SizedBox(height: 6),
         Text(
           '$monthlyUses uses this month',
-          style: const TextStyle(
-            color: Color(0xFF6A8097),
+          style: TextStyle(
+            color: scheme.onSurfaceVariant,
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),
@@ -473,23 +519,24 @@ class InsightTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F9FF),
+        color: _kAccent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFDDE7F4)),
+        border: Border.all(color: _kAccent.withValues(alpha: 0.22)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: const Color(0xFF3B82F6)),
+          Icon(icon, size: 18, color: _kAccent),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(
-                color: Color(0xFF2E4A62),
+              style: TextStyle(
+                color: scheme.onSurface.withValues(alpha: 0.92),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -532,8 +579,9 @@ class _SkeletonBlock extends StatelessWidget {
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF1F9),
+        color: _kSurface,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kAccent.withValues(alpha: 0.12)),
       ),
     );
   }

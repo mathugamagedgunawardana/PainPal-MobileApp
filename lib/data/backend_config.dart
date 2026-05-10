@@ -25,6 +25,15 @@ class BackendConfig {
   static const String migraineEventsEndpoint = '/api/migraine-events';
   static const String mriScansEndpoint = '/api/mri-scans';
   static const String medicationLogsEndpoint = '/api/medication-logs';
+
+  /// Aggregated analytics (MongoDB via Next.js); requires PATIENT JWT.
+  static const String patientAnalyticsEndpoint = '/api/patient/analytics';
+
+  /// Patient-scoped migraine list for History; requires PATIENT JWT.
+  static const String patientMigraineEventsEndpoint = '/api/patient/migraine-events';
+
+  /// Patient-scoped MRI list (optional persistence); requires PATIENT JWT.
+  static const String patientMriScansEndpoint = '/api/patient/mri-scans';
 }
 
 
