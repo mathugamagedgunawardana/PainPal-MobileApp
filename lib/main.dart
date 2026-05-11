@@ -27,6 +27,7 @@ class PainpalApp extends StatelessWidget {
 
     return MaterialApp(
       title: 'Painpal',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: scheme,
         useMaterial3: true,

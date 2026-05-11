@@ -25,9 +25,8 @@ class PatientDataService {
       throw Exception('User not authenticated');
     }
 
-    final uri = Uri.parse(
-      '${BackendConfig.mongoDbApiUrl}${BackendConfig.summaryEndpoint}',
-    );
+    final base = await _authService.resolveApiBaseUrl();
+    final uri = Uri.parse('$base${BackendConfig.summaryEndpoint}');
 
     final payload = attack.toApiJson();
 
@@ -62,9 +61,8 @@ class PatientDataService {
       throw Exception('User not authenticated');
     }
 
-    final uri = Uri.parse(
-      '${BackendConfig.mongoDbApiUrl}${BackendConfig.mriPredictEndpoint}',
-    );
+    final base = await _authService.resolveApiBaseUrl();
+    final uri = Uri.parse('$base${BackendConfig.mriPredictEndpoint}');
 
     final request = http.MultipartRequest('POST', uri);
 
@@ -109,8 +107,9 @@ class PatientDataService {
       throw Exception('Patient profile not loaded');
     }
 
+    final base = await _authService.resolveApiBaseUrl();
     final uri = Uri.parse(
-      '${BackendConfig.mongoDbApiUrl}${BackendConfig.migraineEventsEndpoint}?patientId=$patientId'
+      '$base${BackendConfig.migraineEventsEndpoint}?patientId=$patientId'
       '${limit != null ? '&limit=$limit' : ''}'
       '${skip != null ? '&skip=$skip' : ''}',
     );
@@ -146,8 +145,9 @@ class PatientDataService {
       throw Exception('Patient profile not loaded');
     }
 
+    final base = await _authService.resolveApiBaseUrl();
     final uri = Uri.parse(
-      '${BackendConfig.mongoDbApiUrl}${BackendConfig.mriScansEndpoint}?patientId=$patientId'
+      '$base${BackendConfig.mriScansEndpoint}?patientId=$patientId'
       '${limit != null ? '&limit=$limit' : ''}'
       '${skip != null ? '&skip=$skip' : ''}',
     );
@@ -183,8 +183,9 @@ class PatientDataService {
       throw Exception('Patient profile not loaded');
     }
 
+    final base = await _authService.resolveApiBaseUrl();
     final uri = Uri.parse(
-      '${BackendConfig.mongoDbApiUrl}${BackendConfig.medicationLogsEndpoint}?patientId=$patientId'
+      '$base${BackendConfig.medicationLogsEndpoint}?patientId=$patientId'
       '${limit != null ? '&limit=$limit' : ''}'
       '${skip != null ? '&skip=$skip' : ''}',
     );

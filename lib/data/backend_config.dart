@@ -13,7 +13,7 @@ class BackendConfig {
   static const String summaryEndpoint = '/api/summary';
   static const String mriPredictEndpoint = '/api/mri/predict';
 
-  /// MongoDB API URL
+  /// Fallback when neither Settings "API Base URL" nor `.env` `API_BASE_URL` is set (see [AuthService.resolveApiBaseUrl]).
   static const String mongoDbApiUrl = 'http://localhost:3000';
 
   /// Auth endpoints
