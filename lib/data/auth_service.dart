@@ -1,13 +1,12 @@
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'auth_models.dart';
 import 'backend_config.dart';
 import 'storage.dart';
+import '../util/api_origin.dart';
 
 /// Authentication service for handling user login, registration, and token management
 class AuthService {
@@ -22,30 +21,19 @@ class AuthService {
   Future<String> resolveApiBaseUrl() async {
     final fromSettings = await _settingsStorage.readBaseUrl();
     final s = fromSettings?.trim() ?? '';
-    String base;
+    final String base;
     if (s.isNotEmpty) {
-      base = s.endsWith('/') ? s.substring(0, s.length - 1) : s;
+      base = normalizeApiOrigin(s);
     } else {
       final fromEnv = dotenv.env['API_BASE_URL']?.trim();
       if (fromEnv != null && fromEnv.isNotEmpty) {
-        base = fromEnv.endsWith('/') ? fromEnv.substring(0, fromEnv.length - 1) : fromEnv;
+        base = normalizeApiOrigin(fromEnv);
       } else {
-        base = BackendConfig.mongoDbApiUrl;
+        base = normalizeApiOrigin(BackendConfig.mongoDbApiUrl);
       }
     }
 
-    // Android emulator: localhost/127.0.0.1 is the emulator itself, not the dev host.
-    // Map to 10.0.2.2 (AVD host loopback). Physical device: set LAN IP in Settings instead.
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      final parsed = Uri.tryParse(base);
-      if (parsed != null &&
-          parsed.hasAuthority &&
-          (parsed.host == 'localhost' || parsed.host == '127.0.0.1')) {
-        base = parsed.replace(host: '10.0.2.2').toString();
-      }
-    }
-
-    return base;
+    return resolveApiOriginForDevice(rawBase: base);
   }
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'user_data';
