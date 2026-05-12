@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/auth_models.dart';
 import '../data/storage.dart';
 import '../services/app_services.dart';
 import '../widgets/custom_widgets.dart';
@@ -17,6 +18,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _storage = SettingsStorage();
   final _baseUrlController = TextEditingController();
   final _patientIdController = TextEditingController();
+  final _chatDoctorProfileIdController = TextEditingController();
 
   bool _loading = true;
 
@@ -29,8 +31,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _load() async {
     final baseUrl = await _storage.readBaseUrl();
     final patientId = await _storage.readPatientId();
+    final chatDoctorId = await _storage.readChatDoctorProfileId();
     _baseUrlController.text = baseUrl ?? '';
     _patientIdController.text = patientId ?? '';
+    _chatDoctorProfileIdController.text = chatDoctorId ?? '';
     if (!mounted) {
       return;
     }
@@ -69,6 +73,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _save() async {
     await _storage.saveBaseUrl(_baseUrlController.text);
     await _storage.savePatientId(_patientIdController.text);
+    await _storage.saveChatDoctorProfileId(_chatDoctorProfileIdController.text);
     if (!mounted) {
       return;
     }
@@ -90,6 +95,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _baseUrlController.dispose();
     _patientIdController.dispose();
+    _chatDoctorProfileIdController.dispose();
     super.dispose();
   }
 
@@ -201,6 +207,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
+          if (AppServices.auth.currentUser?.role == UserRole.patient) ...[
+            const SizedBox(height: 16),
+            _SettingCard(
+              title: 'Doctor profile ID (clinic chat)',
+              description:
+                  'Your doctor’s profile id from the web app (Mongo ObjectId). Used to open messaging when you have no existing conversation.',
+              child: TextField(
+                controller: _chatDoctorProfileIdController,
+                decoration: InputDecoration(
+                  hintText: 'Paste doctor profile id',
+                  filled: true,
+                  fillColor: const Color(0xFF171B22),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade700),
+                  ),
+                  prefixIcon:
+                      const Icon(Icons.medical_services_outlined, color: Color(0xFFB6F36B)),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
 
           // TEST CONNECTION BUTTON

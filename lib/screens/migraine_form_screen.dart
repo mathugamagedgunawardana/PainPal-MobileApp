@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../data/api_client.dart';
+import '../data/auth_models.dart';
 import '../data/database.dart';
 import '../data/models.dart';
 import '../data/storage.dart';
+import '../services/app_services.dart';
 import '../widgets/custom_widgets.dart';
+import '../widgets/head_pain_site_picker.dart';
 
 class MigraineFormScreen extends StatefulWidget {
   const MigraineFormScreen({super.key});
@@ -19,14 +22,12 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
 
   final _formKey = GlobalKey<FormState>();
   final _durationController = TextEditingController();
-  final _frequencyController = TextEditingController();
   final _intensityController = TextEditingController();
   final _ageController = TextEditingController();
   final _attackIdController = TextEditingController();
 
-  String _location = 'Unilateral';
+  String _location = HeadPainSitePicker.sites.first.id;
   String _character = 'Throbbing';
-  String _dpf = 'Pattern1';
 
   int _nausea = 0;
   int _vomit = 0;
@@ -62,13 +63,13 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
     }
 
     _durationController.text = draft.durationHours.toString();
-    _frequencyController.text = draft.frequencyPerMonth.toString();
     _intensityController.text = draft.intensity.toString();
     _ageController.text = draft.age?.toString() ?? '';
     _attackIdController.text = draft.attackId ?? '';
-    _location = draft.location;
+    if (draft.location.isNotEmpty) {
+      _location = draft.location;
+    }
     _character = draft.character;
-    _dpf = draft.dpf;
     _nausea = draft.nausea;
     _vomit = draft.vomit;
     _phonophobia = draft.phonophobia;
@@ -106,7 +107,7 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
   MigraineAttack _buildAttack({required bool draftOnly}) {
     return MigraineAttack(
       durationHours: int.tryParse(_durationController.text) ?? 0,
-      frequencyPerMonth: int.tryParse(_frequencyController.text) ?? 0,
+      frequencyPerMonth: 0,
       location: _location,
       character: _character,
       intensity: int.tryParse(_intensityController.text) ?? 0,
@@ -126,7 +127,6 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
       ataxia: _ataxia,
       conscience: _conscience,
       paresthesia: _paresthesia,
-      dpf: _dpf,
       patientId: null,
       attackId: _attackIdController.text.trim().isEmpty
           ? null
@@ -143,16 +143,27 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
       return;
     }
 
+    if (!AppServices.auth.isAuthenticated ||
+        AppServices.auth.currentUser?.role != UserRole.patient) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sign in as a patient to save this attack to your record.'),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _submitting = true;
       _response = null;
     });
 
     try {
-      final baseUrl = await _storage.readBaseUrl();
-      if (baseUrl == null || baseUrl.isEmpty) {
-        throw Exception('API base URL is missing. Set it in Settings.');
+      final baseUrl = await AppServices.auth.resolveApiBaseUrl();
+      if (baseUrl.isEmpty) {
+        throw Exception('API base URL is missing. Set it in Settings or .env.');
       }
+
       final patientId = await _storage.readPatientId();
 
       final attack = _buildAttack(draftOnly: false);
@@ -183,7 +194,6 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
         ataxia: attack.ataxia,
         conscience: attack.conscience,
         paresthesia: attack.paresthesia,
-        dpf: attack.dpf,
         type: result.predictedType,
         patientId: patientId,
         attackId: attack.attackId,
@@ -201,6 +211,12 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
       setState(() {
         _response = result;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Attack saved to your clinic record.'),
+          backgroundColor: Color(0xFFB6F36B),
+        ),
+      );
     } catch (error) {
       if (!mounted) {
         return;
@@ -209,19 +225,17 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
         SnackBar(content: Text(error.toString())),
       );
     } finally {
-      if (!mounted) {
-        return;
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+        });
       }
-      setState(() {
-        _submitting = false;
-      });
     }
   }
 
   @override
   void dispose() {
     _durationController.dispose();
-    _frequencyController.dispose();
     _intensityController.dispose();
     _ageController.dispose();
     _attackIdController.dispose();
@@ -230,11 +244,10 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Log Migraine Attac'),
+        title: const Text('Log migraine attack'),
         elevation: 0,
         backgroundColor: const Color(0xFF171B22),
       ),
@@ -244,7 +257,6 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              // ATTACK PATTERN SECTION
               SectionHeader(
                 title: 'When did the attack happen?',
                 subtitle: 'Help us understand your migraine pattern',
@@ -257,37 +269,12 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
                 unit: 'hours',
                 description: 'How long did your attack last?',
               ),
-              const SizedBox(height: 16),
-              _largeNumberField(
-                controller: _frequencyController,
-                label: 'Frequency',
-                unit: 'per month',
-                description: 'How often do you experience migraines?',
-              ),
-              const SizedBox(height: 16),
-              CustomDropdown(
-                label: 'Location',
+              const SizedBox(height: 20),
+              HeadPainSitePicker(
                 value: _location,
-                options: const ['Unilateral', 'Bilateral'],
-                onChanged: (value) {
-                  setState(() {
-                    _location = value;
-                  });
-                },
-                description: 'Is the pain on one side or both sides?',
+                onChanged: (v) => setState(() => _location = v),
               ),
-              const SizedBox(height: 16),
-              CustomDropdown(
-                label: 'DPF Pattern',
-                value: _dpf,
-                options: const ['Pattern1', 'Pattern2', 'Pattern3'],
-                onChanged: (value) {
-                  setState(() {
-                    _dpf = value;
-                  });
-                },
-              ),
-              // PAIN DESCRIPTION SECTION
+              const SizedBox(height: 24),
               SectionHeader(
                 title: 'Describe the pain',
                 subtitle: 'Help us understand your symptoms better',
@@ -316,7 +303,6 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
                 label: 'Pain Intensity',
                 description: 'Rate your pain level',
               ),
-              // ASSOCIATED SYMPTOMS SECTION
               SectionHeader(
                 title: 'Associated symptoms',
                 subtitle: 'Select any symptoms you experienced',
@@ -383,7 +369,6 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
                   });
                 },
               ),
-              // NEUROLOGICAL SYMPTOMS SECTION
               SectionHeader(
                 title: 'Neurological symptoms',
                 subtitle: 'These are more serious - report all you experience',
@@ -490,7 +475,6 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
                   });
                 },
               ),
-              // OPTIONAL DETAILS SECTION
               SectionHeader(
                 title: 'Optional details',
                 subtitle: 'Help us personalize your care',
@@ -515,27 +499,25 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
                   ),
                 ),
               ),
-              // ACTION BUTTONS
               const SizedBox(height: 24),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   MigraineButton(
-                    onPressed: _submitting ? null : () => _submit(),
-                    label: 'Submit to backend',
+                    onPressed: _submitting ? null : _submit,
+                    label: 'Save to clinic record',
                     icon: Icons.cloud_upload,
                     isLoading: _submitting,
                   ),
                   const SizedBox(height: 12),
                   MigraineButton(
-                    onPressed: _submitting ? null : () => _saveDraft(),
+                    onPressed: _submitting ? null : _saveDraft,
                     label: 'Save as draft',
                     icon: Icons.save,
                     isOutlined: true,
                   ),
                 ],
               ),
-              // RESULT DISPLAY
               if (_response != null) ...[
                 const SizedBox(height: 24),
                 ResultCard(

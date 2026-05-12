@@ -4,7 +4,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 /// Service for handling voice input and output
 class VoiceAgentService {
   static const platform = MethodChannel('com.painpal.voice/channel');
-  late FlutterTts _flutterTts;
+  FlutterTts? _flutterTts;
   bool _isListening = false;
   bool _isSpeaking = false;
   String _lastWords = '';
@@ -22,16 +22,20 @@ class VoiceAgentService {
   Function(String)? onError;
 
   VoiceAgentService() {
-    _initializeTextToSpeech();
     _setupMethodChannel();
   }
 
-  void _initializeTextToSpeech() {
-    _flutterTts = FlutterTts();
-    _flutterTts.setLanguage('en-US');
-    _flutterTts.setSpeechRate(0.85);
-    _flutterTts.setVolume(1.0);
-    _flutterTts.setPitch(1.0);
+  /// Avoid starting the Android TTS engine until [speak] runs (reduces emulator churn / log spam).
+  Future<void> _ensureTts() async {
+    if (_flutterTts != null) {
+      return;
+    }
+    final tts = FlutterTts();
+    await tts.setLanguage('en-US');
+    await tts.setSpeechRate(0.85);
+    await tts.setVolume(1.0);
+    await tts.setPitch(1.0);
+    _flutterTts = tts;
   }
 
   void _setupMethodChannel() {
@@ -107,13 +111,15 @@ class VoiceAgentService {
 
   /// Speak text using text-to-speech
   Future<void> speak(String text) async {
+    await _ensureTts();
+    final tts = _flutterTts!;
     if (_isSpeaking) {
-      await _flutterTts.stop();
+      await tts.stop();
     }
 
     _isSpeaking = true;
     try {
-      await _flutterTts.speak(text);
+      await tts.speak(text);
       _isSpeaking = false;
     } catch (e) {
       _isSpeaking = false;
@@ -123,8 +129,8 @@ class VoiceAgentService {
 
   /// Stop speaking
   Future<void> stopSpeaking() async {
-    if (_isSpeaking) {
-      await _flutterTts.stop();
+    if (_isSpeaking && _flutterTts != null) {
+      await _flutterTts!.stop();
       _isSpeaking = false;
     }
   }
@@ -143,11 +149,12 @@ class VoiceAgentService {
     try {
       await stopListening();
       await stopSpeaking();
-      await _flutterTts.stop();
+      if (_flutterTts != null) {
+        await _flutterTts!.stop();
+      }
       await platform.invokeMethod('dispose');
     } catch (e) {
       // Ignore errors during cleanup
     }
   }
 }
-

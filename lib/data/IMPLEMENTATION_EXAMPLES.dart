@@ -328,7 +328,6 @@ class _SubmitMigraineScreenState extends State<SubmitMigraineScreen> {
         ataxia: 0,
         conscience: 0,
         paresthesia: 0,
-        dpf: 'Pattern1',
       );
 
       final response = await patientService.submitMigraineEvent(attack);

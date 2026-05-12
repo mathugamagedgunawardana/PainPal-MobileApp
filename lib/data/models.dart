@@ -23,7 +23,6 @@ class MigraineAttack {
     required this.ataxia,
     required this.conscience,
     required this.paresthesia,
-    required this.dpf,
     this.type,
     this.patientId,
     this.attackId,
@@ -53,7 +52,6 @@ class MigraineAttack {
   final int ataxia;
   final int conscience;
   final int paresthesia;
-  final String dpf;
   final String? type;
   final String? patientId;
   final String? attackId;
@@ -84,9 +82,7 @@ class MigraineAttack {
       'Ataxia': ataxia,
       'Conscience': conscience,
       'Paresthesia': paresthesia,
-      'DPF': dpf,
     };
-
     if (patientId != null && patientId!.isNotEmpty) {
       payload['patient_id'] = patientId;
     }
@@ -128,7 +124,6 @@ class MigraineAttack {
       'Ataxia': ataxia,
       'Conscience': conscience,
       'Paresthesia': paresthesia,
-      'DPF': dpf,
       'Type': type,
       'summary': summary,
       'timestamp': (timestamp ?? DateTime.now()).toIso8601String(),
@@ -158,7 +153,6 @@ class MigraineAttack {
       ataxia: (map['Ataxia'] as int?) ?? 0,
       conscience: (map['Conscience'] as int?) ?? 0,
       paresthesia: (map['Paresthesia'] as int?) ?? 0,
-      dpf: (map['DPF'] as String?) ?? '',
       type: map['Type'] as String?,
       patientId: map['patient_id'] as String?,
       attackId: map['attack_id'] as String?,
@@ -204,7 +198,6 @@ class MigraineAttack {
       ataxia: (json['ataxia'] as num?)?.toInt() ?? 0,
       conscience: (json['conscience'] as num?)?.toInt() ?? 0,
       paresthesia: (json['paresthesia'] as num?)?.toInt() ?? 0,
-      dpf: json['dpf'] as String? ?? '',
       type: json['type']?.toString(),
       patientId: null,
       attackId: json['id']?.toString(),
@@ -336,7 +329,6 @@ extension MigraineAttackCopy on MigraineAttack {
       ataxia: ataxia,
       conscience: conscience,
       paresthesia: paresthesia,
-      dpf: dpf,
       type: type,
       patientId: patientId ?? this.patientId,
       attackId: attackId,

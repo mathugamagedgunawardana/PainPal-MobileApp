@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/app_services.dart';
+import '../services/medication_reminder_service.dart';
 import '../widgets/chat_widget.dart';
 import 'analytics_screen.dart';
 import 'history_screen.dart';
@@ -21,6 +22,14 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      MedicationReminderService.instance.syncWithBackend(AppServices.auth);
+    });
+  }
 
   Future<void> _confirmSignOut(BuildContext context) async {
     final ok = await showDialog<bool>(

@@ -38,7 +38,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 			baseUrl: base,
 			bearerToken: token,
 		  );
-		  return _viewModelFromBackend(remote);
+		  PatientAiSummaryPayload? aiPayload;
+		  try {
+			aiPayload = await fetchPatientAiSummary(
+			  baseUrl: base,
+			  bearerToken: token,
+			);
+		  } catch (_) {
+			aiPayload = null;
+		  }
+		  return _viewModelFromBackend(remote, aiPayload);
 		}
 	  } catch (_) {
 		// Fall back to on-device SQLite below.
@@ -259,7 +268,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 	];
   }
 
-  _AnalyticsViewModel _viewModelFromBackend(PatientAnalyticsData data) {
+  _AnalyticsViewModel _viewModelFromBackend(
+    PatientAnalyticsData data,
+    PatientAiSummaryPayload? aiSummaryPayload,
+  ) {
 	var low = 0;
 	var medium = 0;
 	var high = 0;
@@ -317,6 +329,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 		? 'You may be overusing medication. Consider discussing this with your clinician.'
 		: null;
 
+	final serverAi = aiSummaryPayload?.combinedParagraphs.trim();
+	final fallbackAi =
+		'From your clinic record (MongoDB): ${data.episodesLast30Days} episodes in the last 30 days, '
+		'avg severity ${avgIntensity.toStringAsFixed(1)}. '
+		'${data.triggers.isNotEmpty ? 'Top trigger theme: ${data.triggers.first.name}.' : ''}';
+	final aiSummary =
+		(serverAi != null && serverAi.isNotEmpty) ? serverAi : fallbackAi;
+
     return _AnalyticsViewModel(
       totalMigraines: data.episodesLast30Days,
       averageIntensity: avgIntensity,
@@ -327,10 +347,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       trend: trendPoints,
       triggers: triggers,
       medications: medications,
-      aiSummary:
-		  'From your clinic record (MongoDB): ${data.episodesLast30Days} episodes in the last 30 days, '
-		  'avg severity ${avgIntensity.toStringAsFixed(1)}. '
-		  '${data.triggers.isNotEmpty ? 'Top trigger theme: ${data.triggers.first.name}.' : ''}',
+      aiSummary: aiSummary,
       mostCommonTrigger: mostCommonTrigger,
       warning: warning,
       aiInsights: _buildAiInsights(

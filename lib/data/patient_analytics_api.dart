@@ -162,6 +162,71 @@ class TriggerCount {
   }
 }
 
+/// Narrative summary from `GET /api/patient/ai-summary` (optional companion to analytics).
+class PatientAiSummaryPayload {
+  const PatientAiSummaryPayload({
+    required this.structuredSummaryText,
+    required this.treatmentOutcomeAnalysis,
+    this.generatedDate,
+  });
+
+  final String structuredSummaryText;
+  final String treatmentOutcomeAnalysis;
+  final String? generatedDate;
+
+  String get combinedParagraphs => [
+        if (structuredSummaryText.trim().isNotEmpty) structuredSummaryText.trim(),
+        if (treatmentOutcomeAnalysis.trim().isNotEmpty) treatmentOutcomeAnalysis.trim(),
+      ].join('\n\n');
+
+  static PatientAiSummaryPayload? fromSummaryJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final s = raw['structuredSummaryText'] as String? ?? '';
+    final t = raw['treatmentOutcomeAnalysis'] as String? ?? '';
+    if (s.trim().isEmpty && t.trim().isEmpty) return null;
+    return PatientAiSummaryPayload(
+      structuredSummaryText: s,
+      treatmentOutcomeAnalysis: t,
+      generatedDate: raw['generatedDate'] as String?,
+    );
+  }
+}
+
+/// Fetches the latest stored AI summary (GET).
+Future<PatientAiSummaryPayload?> fetchPatientAiSummary({
+  required String baseUrl,
+  required String bearerToken,
+  http.Client? client,
+}) async {
+  final c = client ?? http.Client();
+  final root = baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
+  final uri = Uri.parse('$root${BackendConfig.patientAiSummaryEndpoint}');
+
+  final response = await c
+      .get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $bearerToken',
+        },
+      )
+      .timeout(BackendConfig.requestTimeout);
+
+  if (response.statusCode == 401 || response.statusCode == 403) {
+    throw Exception(
+      'Not authorized for patient AI summary (${response.statusCode}).',
+    );
+  }
+  if (response.statusCode != 200) {
+    throw Exception(
+      'AI summary request failed (${response.statusCode}): ${response.body}',
+    );
+  }
+
+  final map = jsonDecode(response.body) as Map<String, dynamic>;
+  return PatientAiSummaryPayload.fromSummaryJson(map['summary']);
+}
+
 /// Fetches analytics stored in MongoDB through the Next.js API.
 Future<PatientAnalyticsData> fetchPatientAnalytics({
   required String baseUrl,

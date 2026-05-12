@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/auth_models.dart';
 import '../data/patient_analytics_api.dart';
 import '../services/app_services.dart';
+import 'migraine_form_screen.dart';
 
 const _kSurface = Color(0xFF171B22);
 const _kAccent = Color(0xFFB6F36B);
@@ -113,6 +114,24 @@ class _LogAttackScreenState extends State<LogAttackScreen> {
           children: [
             _HeaderCard(apiBase: _apiBaseDisplay ?? '—'),
             const SizedBox(height: 16),
+            if (isPatient)
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const MigraineFormScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.edit_note),
+                label: const Text('Log migraine attack'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _kAccent,
+                  foregroundColor: _kBg,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            if (isPatient) const SizedBox(height: 16),
             if (!isPatient) ...[
               Text(
                 'This overview needs a patient profile. Sign out in Settings and sign in with a patient account.',
