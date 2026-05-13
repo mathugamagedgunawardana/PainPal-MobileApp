@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import '../data/auth_models.dart';
 import '../data/storage.dart';
 import '../services/app_services.dart';
+import '../services/medication_reminder_service.dart';
+import '../theme/shell_tokens.dart';
 import '../widgets/custom_widgets.dart';
+import 'patient_profile_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key, this.onSignedOut});
-
-  final VoidCallback? onSignedOut;
+  const SettingsScreen({super.key});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -16,11 +17,10 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _storage = SettingsStorage();
-  final _baseUrlController = TextEditingController();
-  final _patientIdController = TextEditingController();
-  final _chatDoctorProfileIdController = TextEditingController();
 
   bool _loading = true;
+  bool _medicationRemindersEnabled = true;
+  bool _aiUseHealthData = true;
 
   @override
   void initState() {
@@ -29,79 +29,121 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _load() async {
-    final baseUrl = await _storage.readBaseUrl();
-    final patientId = await _storage.readPatientId();
-    final chatDoctorId = await _storage.readChatDoctorProfileId();
-    _baseUrlController.text = baseUrl ?? '';
-    _patientIdController.text = patientId ?? '';
-    _chatDoctorProfileIdController.text = chatDoctorId ?? '';
+    final med = await _storage.readMedicationRemindersEnabled();
+    final aiData = await _storage.readAiUseHealthData();
     if (!mounted) {
       return;
     }
     setState(() {
+      _medicationRemindersEnabled = med;
+      _aiUseHealthData = aiData;
       _loading = false;
     });
   }
 
-  Future<void> _signOut() async {
-    final ok = await showDialog<bool>(
+  Future<void> _onMedicationRemindersChanged(bool value) async {
+    await _storage.saveMedicationRemindersEnabled(value);
+    if (value) {
+      await MedicationReminderService.instance.syncWithBackend(AppServices.auth);
+    } else {
+      await MedicationReminderService.instance.clearAllScheduled();
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() => _medicationRemindersEnabled = value);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          value
+              ? 'Medication reminders are on when your clinic sets a schedule.'
+              : 'Medication reminders are off.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onAiHealthDataChanged(bool value) async {
+    await _storage.saveAiUseHealthData(value);
+    if (!mounted) {
+      return;
+    }
+    setState(() => _aiUseHealthData = value);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          value
+              ? 'The AI assistant can use your logs and clinic summaries when you chat.'
+              : 'The AI assistant will give general advice only until you turn this back on.',
+        ),
+      ),
+    );
+  }
+
+  void _showFullDisclaimer(BuildContext context) {
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Sign out'),
-        content: const Text(
-          'You will need to sign in again to use the app.',
+        title: const Text('Important disclaimer'),
+        content: SingleChildScrollView(
+          child: Text(
+            'Educational purpose only\n\n'
+            'This app is for educational and self-tracking purposes only. Predictions and '
+            'classifications are not medical diagnoses.\n\n'
+            'Consult healthcare professionals\n\n'
+            'Always consult qualified healthcare professionals for diagnosis, treatment, and advice.\n\n'
+            'No emergency use\n\n'
+            'Do not use this app for emergencies. Call your local emergency number if you need urgent care.',
+            style: Theme.of(ctx).textTheme.bodyMedium,
+          ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Sign out'),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
           ),
         ],
       ),
     );
-    if (ok != true || !mounted) {
-      return;
-    }
-    await AppServices.auth.logout();
-    widget.onSignedOut?.call();
   }
 
-  Future<void> _save() async {
-    await _storage.saveBaseUrl(_baseUrlController.text);
-    await _storage.savePatientId(_patientIdController.text);
-    await _storage.saveChatDoctorProfileId(_chatDoctorProfileIdController.text);
-    if (!mounted) {
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.white),
-            SizedBox(width: 12),
-            Text('Settings saved successfully'),
-          ],
+  void _showEmergencyInfo(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Emergencies'),
+        content: Text(
+          'If you or someone else may be having a stroke, severe head injury, sudden worst-ever '
+          'headache, fever with stiff neck, or any life-threatening symptoms, call emergency '
+          'services immediately. PainPal is not an emergency service.',
+          style: Theme.of(ctx).textTheme.bodyMedium,
         ),
-        backgroundColor: Color(0xFFB6F36B),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }
 
-  @override
-  void dispose() {
-    _baseUrlController.dispose();
-    _patientIdController.dispose();
-    _chatDoctorProfileIdController.dispose();
-    super.dispose();
+  Widget _paddedCard({required Widget child}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade900.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade700),
+      ),
+      child: child,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isPatient =
+        AppServices.auth.currentUser?.role == UserRole.patient;
 
     if (_loading) {
       return const Scaffold(
@@ -118,306 +160,141 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          if (widget.onSignedOut != null) ...[
+          SectionHeader(
+            title: 'Your account',
+            subtitle: 'Profile and preferences on this device',
+            illustrationIcon: Icons.person_outline,
+          ),
+          const SizedBox(height: 12),
+          _paddedCard(
+            child: ListTile(
+              leading: const Icon(Icons.badge_outlined, color: ShellTokens.limeMuted),
+              title: const Text('Your profile'),
+              subtitle: Text(
+                'Name, condition summary, and account details',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.grey.shade500,
+                ),
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const PatientProfileScreen(),
+                  ),
+                );
+              },
+            ),
+          ),
+          if (isPatient) ...[
+            const SizedBox(height: 28),
             SectionHeader(
-              title: 'Account',
-              subtitle: 'Sign out of Painpal on this device',
-              illustrationIcon: Icons.person_outline,
+              title: 'Reminders',
+              subtitle: 'How PainPal nudges you about care',
+              illustrationIcon: Icons.notifications_outlined,
             ),
             const SizedBox(height: 12),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.grey.shade900.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade700),
+            _paddedCard(
+              child: SwitchListTile.adaptive(
+                secondary: const Icon(Icons.medication_liquid, color: ShellTokens.limeMuted),
+                title: const Text('Medication reminders'),
+                subtitle: Text(
+                  'Daily notifications from the schedule your clinic saves for you (phone or tablet).',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+                value: _medicationRemindersEnabled,
+                onChanged: _onMedicationRemindersChanged,
               ),
+            ),
+            const SizedBox(height: 28),
+            SectionHeader(
+              title: 'Privacy',
+              subtitle: 'Control what the in-app AI can see',
+              illustrationIcon: Icons.shield_outlined,
+            ),
+            const SizedBox(height: 12),
+            _paddedCard(
+              child: SwitchListTile.adaptive(
+                secondary: const Icon(Icons.psychology_outlined, color: ShellTokens.limeMuted),
+                title: const Text('Let AI use my health data'),
+                subtitle: Text(
+                  'When on, the assistant can refer to your logs, MRI summaries on this device, '
+                  'and clinic analytics. When off, it only gives general migraine guidance.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+                value: _aiUseHealthData,
+                onChanged: _onAiHealthDataChanged,
+              ),
+            ),
+          ],
+          const SizedBox(height: 28),
+          SectionHeader(
+            title: 'Safety & support',
+            subtitle: 'When not to rely on the app',
+            illustrationIcon: Icons.health_and_safety_outlined,
+          ),
+          const SizedBox(height: 12),
+          _paddedCard(
+            child: Column(
+              children: [
+                ListTile(
+                  leading: Icon(Icons.warning_amber_rounded, color: Colors.amber.shade400),
+                  title: const Text('Medical disclaimer'),
+                  subtitle: const Text('Educational use, not a diagnosis'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showFullDisclaimer(context),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: Icon(Icons.emergency_outlined, color: Colors.red.shade300),
+                  title: const Text('Emergencies'),
+                  subtitle: const Text('When to call emergency services'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showEmergencyInfo(context),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+          SectionHeader(
+            title: 'About',
+            subtitle: 'App information',
+            illustrationIcon: Icons.info_outline,
+          ),
+          const SizedBox(height: 12),
+          _paddedCard(
+            child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (AppServices.auth.currentUser != null &&
-                      AppServices.auth.currentUser!.email.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        'Signed in as ${AppServices.auth.currentUser!.email}',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey.shade300,
-                        ),
-                      ),
+                  Text('PainPal', style: theme.textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Version 1.0.0',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.grey.shade400,
                     ),
-                  OutlinedButton.icon(
-                    onPressed: _signOut,
-                    icon: const Icon(Icons.logout),
-                    label: const Text('Sign out'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.redAccent.shade100,
-                      side: BorderSide(
-                        color: Colors.redAccent.shade200.withValues(alpha: 0.6),
-                      ),
-                      minimumSize: const Size.fromHeight(48),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Track migraines, review MRI insights, message your care team, and get '
+                    'supportive guidance in one place.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.grey.shade400,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 28),
-          ],
-          // API SETTINGS SECTION
-          SectionHeader(
-            title: 'API Configuration',
-            subtitle: 'Connect to your backend server',
-            illustrationIcon: Icons.api,
-          ),
-          const SizedBox(height: 16),
-          _SettingCard(
-            title: 'API Base URL',
-            description: 'The address of your backend server',
-            child: TextField(
-              controller: _baseUrlController,
-              keyboardType: TextInputType.url,
-              decoration: InputDecoration(
-                hintText: 'https://your-backend-host',
-                filled: true,
-                fillColor: const Color(0xFF171B22),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade700),
-                ),
-                prefixIcon: const Icon(Icons.link, color: Color(0xFFB6F36B)),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _SettingCard(
-            title: 'Patient ID',
-            description: 'Unique identifier for your patient records (optional)',
-            child: TextField(
-              controller: _patientIdController,
-              decoration: InputDecoration(
-                hintText: 'e.g., patient-12345',
-                filled: true,
-                fillColor: const Color(0xFF171B22),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade700),
-                ),
-                prefixIcon:
-                    const Icon(Icons.badge, color: Color(0xFFB6F36B)),
-              ),
-            ),
-          ),
-          if (AppServices.auth.currentUser?.role == UserRole.patient) ...[
-            const SizedBox(height: 16),
-            _SettingCard(
-              title: 'Doctor profile ID (clinic chat)',
-              description:
-                  'Your doctor’s profile id from the web app (Mongo ObjectId). Used to open messaging when you have no existing conversation.',
-              child: TextField(
-                controller: _chatDoctorProfileIdController,
-                decoration: InputDecoration(
-                  hintText: 'Paste doctor profile id',
-                  filled: true,
-                  fillColor: const Color(0xFF171B22),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade700),
-                  ),
-                  prefixIcon:
-                      const Icon(Icons.medical_services_outlined, color: Color(0xFFB6F36B)),
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 24),
-
-          // TEST CONNECTION BUTTON
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.blue.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.blue.shade600, width: 1),
-            ),
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Icon(Icons.info, color: Colors.blue.shade600),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Make sure you have internet connection and the API server is running.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.blue.shade600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ),
           const SizedBox(height: 24),
-
-          // SAVE BUTTON
-          MigraineButton(
-            onPressed: _save,
-            label: 'Save Settings',
-            icon: Icons.save,
-          ),
-          const SizedBox(height: 32),
-
-          // DISCLAIMER SECTION
-          SectionHeader(
-            title: '⚠️ Important Disclaimer',
-            subtitle: 'Please read carefully',
-            illustrationIcon: Icons.warning_amber,
-          ),
-          const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.amber.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.amber.shade600, width: 2),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Educational Purpose Only',
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.amber.shade600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'This app is for educational and self-tracking purposes only. The predictions and classifications provided by this app are NOT medical diagnoses.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.amber.shade700,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Consult Healthcare Professionals',
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.amber.shade600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Always consult qualified healthcare professionals for proper diagnosis, treatment recommendations, and medical advice.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.amber.shade700,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'No Emergency Use',
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.amber.shade600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'This app should not be used for emergency medical situations. In case of emergency, please contact emergency services immediately.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.amber.shade700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // ABOUT SECTION
-          SectionHeader(
-            title: 'About',
-            subtitle: 'Application information',
-            illustrationIcon: Icons.info_outline,
-          ),
-          const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF171B22),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade700),
-            ),
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'PainPal',
-                  style: theme.textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Version 1.0.0',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.grey.shade400,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'A health-tracking application for migraine management and brain MRI analysis.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.grey.shade400,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
         ],
       ),
     );
   }
 }
-
-class _SettingCard extends StatelessWidget {
-  final String title;
-  final String description;
-  final Widget child;
-
-  const _SettingCard({
-    Key? key,
-    required this.title,
-    required this.description,
-    required this.child,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade900.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade700),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            description,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.grey.shade400,
-            ),
-          ),
-          const SizedBox(height: 12),
-          child,
-        ],
-      ),
-    );
-  }
-}
-

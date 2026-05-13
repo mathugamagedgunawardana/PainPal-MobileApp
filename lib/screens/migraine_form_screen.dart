@@ -10,10 +10,21 @@ import '../widgets/custom_widgets.dart';
 import '../widgets/head_pain_site_picker.dart';
 
 class MigraineFormScreen extends StatefulWidget {
-  const MigraineFormScreen({super.key, this.embedInShell = false});
+  const MigraineFormScreen({
+    super.key,
+    this.embedInShell = false,
+    this.initialDurationHours,
+    this.attackStartedAt,
+  });
 
   /// When true, used inside [HomeScreen] shell without a duplicate app bar.
   final bool embedInShell;
+
+  /// Pre-fills duration (hours) when opened after stopping the attack timer on Home.
+  final int? initialDurationHours;
+
+  /// When set (e.g. from attack timer), used as attack onset time instead of submit time.
+  final DateTime? attackStartedAt;
 
   @override
   State<MigraineFormScreen> createState() => _MigraineFormScreenState();
@@ -61,34 +72,36 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
   Future<void> _loadDraft() async {
     final draftJson = await _storage.readDraftAttack();
     final draft = MigraineAttack.fromDraftJson(draftJson);
-    if (draft == null) {
-      return;
+    if (draft != null) {
+      _durationController.text = draft.durationHours.toString();
+      _intensityController.text = draft.intensity.toString();
+      _ageController.text = draft.age?.toString() ?? '';
+      _attackIdController.text = draft.attackId ?? '';
+      if (draft.location.isNotEmpty) {
+        _location = draft.location;
+      }
+      _character = draft.character;
+      _nausea = draft.nausea;
+      _vomit = draft.vomit;
+      _phonophobia = draft.phonophobia;
+      _photophobia = draft.photophobia;
+      _visual = draft.visual;
+      _sensory = draft.sensory;
+      _dysphasia = draft.dysphasia;
+      _dysarthria = draft.dysarthria;
+      _vertigo = draft.vertigo;
+      _tinnitus = draft.tinnitus;
+      _hypoacusis = draft.hypoacusis;
+      _diplopia = draft.diplopia;
+      _defect = draft.defect;
+      _ataxia = draft.ataxia;
+      _conscience = draft.conscience;
+      _paresthesia = draft.paresthesia;
     }
 
-    _durationController.text = draft.durationHours.toString();
-    _intensityController.text = draft.intensity.toString();
-    _ageController.text = draft.age?.toString() ?? '';
-    _attackIdController.text = draft.attackId ?? '';
-    if (draft.location.isNotEmpty) {
-      _location = draft.location;
+    if (widget.initialDurationHours != null && widget.initialDurationHours! > 0) {
+      _durationController.text = '${widget.initialDurationHours}';
     }
-    _character = draft.character;
-    _nausea = draft.nausea;
-    _vomit = draft.vomit;
-    _phonophobia = draft.phonophobia;
-    _photophobia = draft.photophobia;
-    _visual = draft.visual;
-    _sensory = draft.sensory;
-    _dysphasia = draft.dysphasia;
-    _dysarthria = draft.dysarthria;
-    _vertigo = draft.vertigo;
-    _tinnitus = draft.tinnitus;
-    _hypoacusis = draft.hypoacusis;
-    _diplopia = draft.diplopia;
-    _defect = draft.defect;
-    _ataxia = draft.ataxia;
-    _conscience = draft.conscience;
-    _paresthesia = draft.paresthesia;
 
     if (!mounted) {
       return;
@@ -135,7 +148,7 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
           ? null
           : _attackIdController.text.trim(),
       age: int.tryParse(_ageController.text),
-      timestamp: DateTime.now(),
+      timestamp: widget.attackStartedAt ?? DateTime.now(),
       summary: draftOnly ? null : _response?.summary,
       type: draftOnly ? null : _response?.predictedType,
     );
@@ -201,7 +214,7 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
         patientId: patientId,
         attackId: attack.attackId,
         age: attack.age,
-        timestamp: DateTime.now(),
+        timestamp: attack.timestamp ?? DateTime.now(),
         summary: result.summary,
       );
 

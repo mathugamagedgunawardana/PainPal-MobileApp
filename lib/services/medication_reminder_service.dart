@@ -10,6 +10,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../data/auth_service.dart';
 import '../data/backend_config.dart';
+import '../data/storage.dart';
 
 /// Local daily medication reminders from the clinician schedule (GET /api/patient/medication-schedule).
 /// True remote push (FCM) would require Firebase + server; this uses OS-scheduled local notifications.
@@ -61,8 +62,30 @@ class MedicationReminderService {
     _initialized = true;
   }
 
+  /// Cancels all OS medication reminders scheduled by this app (e.g. user turned reminders off).
+  Future<void> clearAllScheduled() async {
+    if (kIsWeb) return;
+    await _ensureInit();
+    final prefs = await SharedPreferences.getInstance();
+    final oldIds = prefs.getStringList(_prefsKey) ?? [];
+    for (final s in oldIds) {
+      final id = int.tryParse(s);
+      if (id != null) await _plugin.cancel(id: id);
+    }
+    await prefs.remove(_prefsKey);
+  }
+
   Future<void> syncWithBackend(AuthService auth) async {
     if (!auth.isAuthenticated) return;
+    if (kIsWeb) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    if ((prefs.getBool(SettingsStorage.medicationRemindersEnabledKey) ?? true) ==
+        false) {
+      await clearAllScheduled();
+      return;
+    }
+
     await _ensureInit();
 
     final base = await auth.resolveApiBaseUrl();
@@ -77,7 +100,6 @@ class MedicationReminderService {
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     final groups = (body['groups'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
-    final prefs = await SharedPreferences.getInstance();
     final oldIds = prefs.getStringList(_prefsKey) ?? [];
     for (final s in oldIds) {
       final id = int.tryParse(s);

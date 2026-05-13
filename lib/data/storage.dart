@@ -6,6 +6,32 @@ class SettingsStorage {
   static const _draftAttackKey = 'draft_attack';
   static const _chatDoctorProfileIdKey = 'chat_doctor_profile_id';
 
+  /// Local medication reminder notifications (see [MedicationReminderService]).
+  static const medicationRemindersEnabledKey = 'pref_medication_reminders_enabled';
+
+  /// When false, the Gemini assistant receives only a short privacy notice, not logs/MRI/analytics.
+  static const aiUseHealthDataKey = 'pref_ai_use_health_data';
+
+  Future<bool> readMedicationRemindersEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(medicationRemindersEnabledKey) ?? true;
+  }
+
+  Future<void> saveMedicationRemindersEnabled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(medicationRemindersEnabledKey, value);
+  }
+
+  Future<bool> readAiUseHealthData() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(aiUseHealthDataKey) ?? true;
+  }
+
+  Future<void> saveAiUseHealthData(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(aiUseHealthDataKey, value);
+  }
+
   Future<void> saveBaseUrl(String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_baseUrlKey, value.trim());

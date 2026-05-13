@@ -35,6 +35,9 @@ class BackendConfig {
   /// Stored AI narrative summary; requires PATIENT JWT.
   static const String patientAiSummaryEndpoint = '/api/patient/ai-summary';
 
+  /// Full patient-scoped DB export for Gemini (JSON text); requires PATIENT JWT.
+  static const String patientAiContextEndpoint = '/api/patient/ai-context';
+
   /// Patient-scoped migraine list for History; requires PATIENT JWT.
   static const String patientMigraineEventsEndpoint = '/api/patient/migraine-events';
 

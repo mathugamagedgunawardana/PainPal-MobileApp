@@ -598,9 +598,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 									  if (data.nextAttack!.duration != null)
 										'Est. ${data.nextAttack!.duration!.toStringAsFixed(1)} h',
 									  if (data.nextAttack!.frequency != null)
-										'Freq ${data.nextAttack!.frequency!.toStringAsFixed(1)}',
+										'~${data.nextAttack!.frequency!.round()} episodes/mo',
 									  if (data.nextAttack!.intensity != null)
-										'Intensity ${data.nextAttack!.intensity!.toStringAsFixed(1)}',
+										'Intensity ${data.nextAttack!.intensity!.toStringAsFixed(1)}/10',
 									].join(' · '),
 									style: theme.textTheme.bodySmall?.copyWith(color: accent),
 								  ),

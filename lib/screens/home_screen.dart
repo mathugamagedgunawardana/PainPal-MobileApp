@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../data/auth_models.dart';
 import '../services/app_services.dart';
+import '../services/attack_timer_service.dart';
 import '../services/medication_reminder_service.dart';
 import '../theme/shell_tokens.dart';
 import '../widgets/app_paynx_bottom_nav.dart';
@@ -79,6 +81,103 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _onAttackTimerFab(BuildContext context) {
+    final t = AppServices.attackTimer;
+    if (!t.isRunning) {
+      t.start();
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: ShellTokens.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) {
+        return ListenableBuilder(
+          listenable: t,
+          builder: (context, _) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade600,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'Attack timer',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      AttackTimerService.formatElapsed(t.elapsed),
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Stop when you are ready to describe the attack in the log.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton.icon(
+                      onPressed: () {
+                        final r = t.consumeStopForLog();
+                        Navigator.of(sheetCtx).pop();
+                        if (r == null || !mounted) {
+                          return;
+                        }
+                        Navigator.of(context).push<void>(
+                          MaterialPageRoute<void>(
+                            builder: (_) => MigraineFormScreen(
+                              initialDurationHours: r.durationHours,
+                              attackStartedAt: r.startedAt,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.edit_note),
+                      label: const Text('Stop & log attack'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: ShellTokens.lime,
+                        foregroundColor: ShellTokens.bg,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        t.cancel();
+                        Navigator.of(sheetCtx).pop();
+                      },
+                      child: const Text('Discard timer'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _openPatientProfile() {
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
@@ -92,6 +191,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     // Space for dock (72) + padding (8) + elevated center control (~28) + margin
     final fabBottom = bottomInset + 108;
+    final isPatient =
+        AppServices.auth.currentUser?.role == UserRole.patient;
 
     return Scaffold(
       key: _scaffoldKey,
@@ -103,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Navigator.of(context).pop();
           Navigator.of(context).push<void>(
             MaterialPageRoute<void>(
-              builder: (_) => SettingsScreen(onSignedOut: widget.onSignedOut),
+              builder: (_) => const SettingsScreen(),
             ),
           );
         },
@@ -144,13 +245,45 @@ class _HomeScreenState extends State<HomeScreen> {
           Positioned(
             right: 12,
             bottom: fabBottom,
-            child: FloatingActionButton(
-              onPressed: _openChat,
-              backgroundColor: ShellTokens.lime,
-              foregroundColor: ShellTokens.bg,
-              elevation: 10,
-              tooltip: 'Clinic chat & AI assistant',
-              child: const Icon(Icons.chat_bubble_rounded, size: 26),
+            child: ListenableBuilder(
+              listenable: AppServices.attackTimer,
+              builder: (context, _) {
+                final running = AppServices.attackTimer.isRunning;
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (isPatient) ...[
+                      FloatingActionButton(
+                        heroTag: 'fab_attack_timer',
+                        onPressed: () => _onAttackTimerFab(context),
+                        backgroundColor: running
+                            ? Colors.amber.shade700
+                            : ShellTokens.lime,
+                        foregroundColor: ShellTokens.bg,
+                        elevation: 10,
+                        tooltip: running
+                            ? 'Attack timer — tap to stop or log'
+                            : 'Start migraine attack timer',
+                        child: Icon(
+                          running ? Icons.timer : Icons.timer_outlined,
+                          size: 26,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    FloatingActionButton(
+                      heroTag: 'fab_chat',
+                      onPressed: _openChat,
+                      backgroundColor: ShellTokens.lime,
+                      foregroundColor: ShellTokens.bg,
+                      elevation: 10,
+                      tooltip: 'Clinic chat & AI assistant',
+                      child: const Icon(Icons.chat_bubble_rounded, size: 26),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],
