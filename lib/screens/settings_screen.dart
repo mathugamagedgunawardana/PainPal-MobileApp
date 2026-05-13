@@ -4,7 +4,7 @@ import '../data/auth_models.dart';
 import '../data/storage.dart';
 import '../services/app_services.dart';
 import '../services/medication_reminder_service.dart';
-import '../theme/shell_tokens.dart';
+import '../theme/painpal_app_colors.dart';
 import '../widgets/custom_widgets.dart';
 import 'patient_profile_screen.dart';
 
@@ -128,12 +128,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _paddedCard({required Widget child}) {
+  Widget _paddedCard(BuildContext context, {required Widget child}) {
+    final pp = context.pp;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade900.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade700),
+        color: pp.bgCard,
+        borderRadius: BorderRadius.circular(PainpalRadii.lg),
+        border: Border.all(color: pp.borderDefault),
+        boxShadow: pp.shadowCard,
       ),
       child: child,
     );
@@ -151,11 +153,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     }
 
+    final pp = context.pp;
+
     return Scaffold(
+      backgroundColor: pp.bgTertiary,
       appBar: AppBar(
         title: const Text('Settings'),
-        elevation: 0,
-        backgroundColor: const Color(0xFF171B22),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -167,16 +170,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 12),
           _paddedCard(
+            context,
             child: ListTile(
-              leading: const Icon(Icons.badge_outlined, color: ShellTokens.limeMuted),
-              title: const Text('Your profile'),
+              leading: Icon(Icons.badge_outlined, color: pp.accentPrimary),
+              title: Text('Your profile', style: TextStyle(color: pp.textPrimary)),
               subtitle: Text(
                 'Name, condition summary, and account details',
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.grey.shade500,
+                  color: pp.textSecondary,
                 ),
               ),
-              trailing: const Icon(Icons.chevron_right),
+              trailing: Icon(Icons.chevron_right, color: pp.textTertiary),
               onTap: () {
                 Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
@@ -195,13 +199,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 12),
             _paddedCard(
+              context,
               child: SwitchListTile.adaptive(
-                secondary: const Icon(Icons.medication_liquid, color: ShellTokens.limeMuted),
-                title: const Text('Medication reminders'),
+                secondary: Icon(Icons.medication_liquid, color: pp.accentPrimary),
+                title: Text('Medication reminders', style: TextStyle(color: pp.textPrimary)),
                 subtitle: Text(
                   'Daily notifications from the schedule your clinic saves for you (phone or tablet).',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.grey.shade500,
+                    color: pp.textSecondary,
                   ),
                 ),
                 value: _medicationRemindersEnabled,
@@ -216,14 +221,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 12),
             _paddedCard(
+              context,
               child: SwitchListTile.adaptive(
-                secondary: const Icon(Icons.psychology_outlined, color: ShellTokens.limeMuted),
-                title: const Text('Let AI use my health data'),
+                secondary: Icon(Icons.psychology_outlined, color: pp.accentPrimary),
+                title: Text('Let AI use my health data', style: TextStyle(color: pp.textPrimary)),
                 subtitle: Text(
                   'When on, the assistant can refer to your logs, MRI summaries on this device, '
                   'and clinic analytics. When off, it only gives general migraine guidance.',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.grey.shade500,
+                    color: pp.textSecondary,
                   ),
                 ),
                 value: _aiUseHealthData,
@@ -239,21 +245,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 12),
           _paddedCard(
+            context,
             child: Column(
               children: [
                 ListTile(
-                  leading: Icon(Icons.warning_amber_rounded, color: Colors.amber.shade400),
-                  title: const Text('Medical disclaimer'),
-                  subtitle: const Text('Educational use, not a diagnosis'),
-                  trailing: const Icon(Icons.chevron_right),
+                  leading: Icon(Icons.warning_amber_rounded, color: pp.accentWarning),
+                  title: Text('Medical disclaimer', style: TextStyle(color: pp.textPrimary)),
+                  subtitle: Text('Educational use, not a diagnosis', style: TextStyle(color: pp.textSecondary)),
+                  trailing: Icon(Icons.chevron_right, color: pp.textTertiary),
                   onTap: () => _showFullDisclaimer(context),
                 ),
-                const Divider(height: 1),
+                Divider(height: 1, color: pp.borderDefault),
                 ListTile(
-                  leading: Icon(Icons.emergency_outlined, color: Colors.red.shade300),
-                  title: const Text('Emergencies'),
-                  subtitle: const Text('When to call emergency services'),
-                  trailing: const Icon(Icons.chevron_right),
+                  leading: Icon(Icons.emergency_outlined, color: pp.accentDanger),
+                  title: Text('Emergencies', style: TextStyle(color: pp.textPrimary)),
+                  subtitle: Text('When to call emergency services', style: TextStyle(color: pp.textSecondary)),
+                  trailing: Icon(Icons.chevron_right, color: pp.textTertiary),
                   onTap: () => _showEmergencyInfo(context),
                 ),
               ],
@@ -267,17 +274,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 12),
           _paddedCard(
+            context,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('PainPal', style: theme.textTheme.titleMedium),
+                  Text('PainPal', style: theme.textTheme.titleMedium?.copyWith(color: pp.textPrimary)),
                   const SizedBox(height: 8),
                   Text(
                     'Version 1.0.0',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.grey.shade400,
+                      color: pp.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -285,7 +293,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'Track migraines, review MRI insights, message your care team, and get '
                     'supportive guidance in one place.',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.grey.shade400,
+                      color: pp.textSecondary,
                     ),
                   ),
                 ],

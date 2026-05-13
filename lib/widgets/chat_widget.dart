@@ -13,6 +13,7 @@ import '../data/patient_ai_context_builder.dart';
 import '../data/storage.dart';
 import '../data/voice_agent_service.dart';
 import '../services/app_services.dart';
+import '../theme/painpal_app_colors.dart';
 
 /// Local model for the Gemini / voice assistant tab only.
 class AiChatMessage {
@@ -84,8 +85,11 @@ class _ChatDialogState extends State<ChatDialog>
   @override
   Widget build(BuildContext context) {
     final h = MediaQuery.sizeOf(context).height * 0.72;
+    final pp = context.pp;
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(PainpalRadii.lg),
+      ),
       insetPadding: const EdgeInsets.all(16),
       child: SizedBox(
         width: double.maxFinite,
@@ -94,29 +98,33 @@ class _ChatDialogState extends State<ChatDialog>
           children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: const BoxDecoration(
-                color: Color(0xFFB6F36B),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [pp.accentPrimary, pp.accentSecondary],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(PainpalRadii.lg),
+                  topRight: Radius.circular(PainpalRadii.lg),
                 ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.chat_bubble_outline, color: Color(0xFF0F1218)),
+                  Icon(Icons.chat_bubble_outline, color: pp.textOnAccent),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      _showDoctorTab ? 'Messages' : 'Painpal AI Assistant',
-                      style: const TextStyle(
+                      _showDoctorTab ? '👩‍⚕️ Messages' : '🤖 Painpal AI',
+                      style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F1218),
+                        color: pp.textOnAccent,
                       ),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Color(0xFF0F1218)),
+                    icon: Icon(Icons.close, color: pp.textOnAccent),
                     onPressed: () => Navigator.of(context).pop(),
                     tooltip: 'Close',
                   ),
@@ -125,15 +133,15 @@ class _ChatDialogState extends State<ChatDialog>
             ),
             if (_showDoctorTab && _tabController != null) ...[
               Material(
-                color: const Color(0xFF171B22),
+                color: pp.bgCard,
                 child: TabBar(
                   controller: _tabController,
-                  labelColor: const Color(0xFFB6F36B),
-                  unselectedLabelColor: Colors.grey,
-                  indicatorColor: const Color(0xFFB6F36B),
+                  labelColor: pp.accentPrimary,
+                  unselectedLabelColor: pp.textTertiary,
+                  indicatorColor: pp.accentPrimary,
                   tabs: const [
-                    Tab(text: 'Your doctor'),
-                    Tab(text: 'AI assistant'),
+                    Tab(text: '👩‍⚕️ Your doctor'),
+                    Tab(text: '🤖 AI assistant'),
                   ],
                 ),
               ),
@@ -941,7 +949,25 @@ class _AiChatPanelState extends State<_AiChatPanel> {
         await PainpalDatabase.instance.pruneAiChatMessages(accountKey);
       } catch (_) {}
 
-      await _voiceService.speak(response);
+      // Run TTS after this frame so [speak] never runs inside [build] / tight [setState].
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) {
+          return;
+        }
+        try {
+          await _voiceService.speak(response);
+        } catch (e) {
+          if (!mounted) {
+            return;
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Could not read reply aloud: $e'),
+              backgroundColor: Colors.orange.shade800,
+            ),
+          );
+        }
+      });
 
       _scrollToBottom();
     } catch (e) {

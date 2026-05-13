@@ -2,9 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// Dark card surface; aligns with History / Settings / `scaffoldBackgroundColor` in the app theme.
-const _kSurface = Color(0xFF171B22);
-const _kAccent = Color(0xFFB6F36B);
+import '../theme/painpal_app_colors.dart';
 
 class AnalyticsCard extends StatelessWidget {
   const AnalyticsCard({
@@ -18,21 +16,15 @@ class AnalyticsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final outline = _kAccent.withValues(alpha: 0.22);
+    final pp = context.pp;
     return Container(
       width: double.infinity,
       padding: padding,
       decoration: BoxDecoration(
-        color: _kSurface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: outline),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        color: pp.bgCard,
+        borderRadius: BorderRadius.circular(PainpalRadii.lg),
+        border: Border.all(color: pp.borderDefault),
+        boxShadow: pp.shadowCard,
       ),
       child: child,
     );
@@ -54,6 +46,7 @@ class AnalyticsFilterChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final pp = context.pp;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -67,13 +60,15 @@ class AnalyticsFilterChips extends StatelessWidget {
                   onSelected: (_) => onSelected(option),
                   labelStyle: TextStyle(
                     fontWeight: FontWeight.w600,
-                    color: option == selected ? _kAccent : scheme.onSurfaceVariant,
+                    color: option == selected
+                        ? pp.textOnAccent
+                        : scheme.onSurfaceVariant,
                   ),
-                  selectedColor: _kAccent.withValues(alpha: 0.2),
-                  backgroundColor: _kSurface,
+                  selectedColor: pp.accentPrimary,
+                  backgroundColor: pp.bgSecondary,
                   side: BorderSide(
                     color: option == selected
-                        ? _kAccent.withValues(alpha: 0.5)
+                        ? pp.accentPrimary
                         : scheme.outline.withValues(alpha: 0.35),
                   ),
                   shape: RoundedRectangleBorder(
@@ -101,11 +96,12 @@ class TrendToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final pp = context.pp;
     final options = <String>['Week', 'Month'];
     return Container(
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
+        color: pp.bgSecondary,
+        borderRadius: BorderRadius.circular(PainpalRadii.md),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -122,14 +118,16 @@ class TrendToggle extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: selected == option
-                        ? _kAccent.withValues(alpha: 0.22)
+                        ? pp.accentPrimary
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
                     option,
                     style: TextStyle(
-                      color: selected == option ? _kAccent : scheme.onSurfaceVariant,
+                      color: selected == option
+                          ? pp.textOnAccent
+                          : scheme.onSurfaceVariant,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -165,15 +163,16 @@ class MiniLineChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final pp = context.pp;
     return SizedBox(
       height: 150,
       child: CustomPaint(
         painter: _LineChartPainter(
           points,
-          lineColor: _kAccent,
+          lineColor: pp.accentPrimary,
           spikeColor: scheme.error,
-          gridColor: scheme.outline.withValues(alpha: 0.35),
-          fillColor: _kAccent.withValues(alpha: 0.12),
+          gridColor: pp.borderDefault.withValues(alpha: 0.6),
+          fillColor: pp.accentPrimary.withValues(alpha: 0.12),
         ),
         child: Padding(
           padding: const EdgeInsets.only(top: 124, left: 6, right: 6),
@@ -308,28 +307,29 @@ class DistributionBars extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final maxValue = math.max(1, math.max(low, math.max(medium, high)));
+    final pp = context.pp;
 
     return Row(
       children: [
         _IntensityBar(
-          label: 'Low',
+          label: '😐 Low',
           value: low,
           maxValue: maxValue,
-          color: _kAccent.withValues(alpha: 0.35),
+          color: pp.accentSuccess,
         ),
         const SizedBox(width: 12),
         _IntensityBar(
-          label: 'Medium',
+          label: '😣 Medium',
           value: medium,
           maxValue: maxValue,
-          color: _kAccent.withValues(alpha: 0.58),
+          color: pp.accentWarning,
         ),
         const SizedBox(width: 12),
         _IntensityBar(
-          label: 'High',
+          label: '🔥 High',
           value: high,
           maxValue: maxValue,
-          color: _kAccent,
+          color: pp.accentDanger,
         ),
       ],
     );
@@ -408,19 +408,20 @@ class TriggerTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final pp = context.pp;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _kAccent.withValues(alpha: 0.18)),
+        color: pp.bgSecondary,
+        borderRadius: BorderRadius.circular(PainpalRadii.md),
+        border: Border.all(color: pp.borderDefault),
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 16,
-            backgroundColor: _kAccent.withValues(alpha: 0.18),
-            child: Icon(icon, size: 16, color: _kAccent),
+            backgroundColor: pp.accentPrimaryLight,
+            child: Icon(icon, size: 16, color: pp.accentPrimary),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -434,9 +435,9 @@ class TriggerTile extends StatelessWidget {
           ),
           Text(
             '$percent%',
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w800,
-              color: _kAccent,
+              color: pp.accentPrimary,
             ),
           ),
         ],
@@ -460,6 +461,7 @@ class MedicationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final pp = context.pp;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -476,9 +478,9 @@ class MedicationTile extends StatelessWidget {
             ),
             Text(
               '$successRate% relief',
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w700,
-                color: _kAccent,
+                color: pp.accentPrimary,
               ),
             ),
           ],
@@ -490,7 +492,7 @@ class MedicationTile extends StatelessWidget {
             minHeight: 8,
             value: successRate / 100,
             backgroundColor: scheme.outline.withValues(alpha: 0.25),
-            valueColor: const AlwaysStoppedAnimation<Color>(_kAccent),
+            valueColor: AlwaysStoppedAnimation<Color>(pp.accentPrimary),
           ),
         ),
         const SizedBox(height: 6),
@@ -520,17 +522,20 @@ class InsightTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final pp = context.pp;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _kAccent.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _kAccent.withValues(alpha: 0.22)),
+        color: pp.accentSuccessLight,
+        borderRadius: BorderRadius.circular(PainpalRadii.md),
+        border: Border.all(
+          color: pp.accentSuccess.withValues(alpha: 0.35),
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: _kAccent),
+          Icon(icon, size: 18, color: pp.accentSuccess),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -576,12 +581,13 @@ class _SkeletonBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final pp = context.pp;
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: _kSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _kAccent.withValues(alpha: 0.12)),
+        color: pp.bgSecondary,
+        borderRadius: BorderRadius.circular(PainpalRadii.lg),
+        border: Border.all(color: pp.borderDefault),
       ),
     );
   }

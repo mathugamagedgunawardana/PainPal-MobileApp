@@ -5,7 +5,7 @@ import '../services/app_services.dart';
 import '../services/attack_timer_service.dart';
 import '../services/medication_reminder_service.dart';
 import '../services/quick_access_actions.dart';
-import '../theme/shell_tokens.dart';
+import '../theme/painpal_app_colors.dart';
 import '../widgets/app_paynx_bottom_nav.dart';
 import '../widgets/app_shell_header.dart';
 import '../widgets/chat_widget.dart';
@@ -31,7 +31,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _index = 0;
-  bool _quickAccessExpanded = false;
 
   late final List<Widget> _tabs = [
     const LogAttackScreen(embedInShell: true),
@@ -89,11 +88,12 @@ class _HomeScreenState extends State<HomeScreen> {
       t.start();
       return;
     }
+    final pp = context.pp;
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: ShellTokens.surface,
+      backgroundColor: pp.bgCard,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(PainpalRadii.xl)),
       ),
       builder: (sheetCtx) {
         return ListenableBuilder(
@@ -112,15 +112,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         height: 4,
                         margin: const EdgeInsets.only(bottom: 16),
                         decoration: BoxDecoration(
-                          color: Colors.grey.shade600,
+                          color: sheetCtx.pp.borderDefault,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
                     ),
                     Text(
-                      'Attack timer',
+                      '⏱️ Attack timer',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w800,
+                            color: sheetCtx.pp.textPrimary,
                           ),
                     ),
                     const SizedBox(height: 8),
@@ -129,13 +130,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.5,
+                            color: sheetCtx.pp.accentPrimary,
                           ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Stop when you are ready to describe the attack in the log.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: sheetCtx.pp.textSecondary,
                           ),
                     ),
                     const SizedBox(height: 20),
@@ -158,8 +160,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       icon: const Icon(Icons.edit_note),
                       label: const Text('Stop & log attack'),
                       style: FilledButton.styleFrom(
-                        backgroundColor: ShellTokens.lime,
-                        foregroundColor: ShellTokens.bg,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                     ),
@@ -188,44 +188,17 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _collapseQuickAccess() {
-    if (_quickAccessExpanded) {
-      setState(() => _quickAccessExpanded = false);
-    }
-  }
-
-  Widget _quickAccessMiniFab({
-    required Object heroTag,
-    required IconData icon,
-    required String tooltip,
-    required Color backgroundColor,
-    required VoidCallback onPressed,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: FloatingActionButton.small(
-        heroTag: heroTag,
-        onPressed: onPressed,
-        backgroundColor: backgroundColor,
-        foregroundColor: Colors.white,
-        elevation: 8,
-        tooltip: tooltip,
-        child: Icon(icon, size: 20),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
-    // Space for dock (72) + padding (8) + elevated center control (~28) + margin
-    final fabBottom = bottomInset + 108;
     final isPatient =
         AppServices.auth.currentUser?.role == UserRole.patient;
+    final pp = context.pp;
+    final chatBottom = bottomInset + 8 + 72 + (isPatient ? 48 : 0) + 12;
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: ShellTokens.bg,
+      backgroundColor: pp.bgTertiary,
       drawer: _AppDrawer(
         onCloseDrawer: () => Navigator.of(context).pop(),
         onSignedOut: () => _confirmSignOut(context),
@@ -249,6 +222,22 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           );
         },
+        onOpenEmergencyContacts: () {
+          Navigator.of(context).pop();
+          QuickAccessActions.openEmergencyContacts(context);
+        },
+        onOpenCallDoctor: () {
+          Navigator.of(context).pop();
+          QuickAccessActions.openCallDoctor(context);
+        },
+        onShareLocation: () {
+          Navigator.of(context).pop();
+          QuickAccessActions.shareLocation(context);
+        },
+        onOpenSevereChecklist: () {
+          Navigator.of(context).pop();
+          QuickAccessActions.openSevereChecklist(context);
+        },
       ),
       body: Stack(
         clipBehavior: Clip.none,
@@ -265,6 +254,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: _tabs,
                 ),
               ),
+              if (isPatient)
+                _ShellTimerBar(onPressed: () => _onAttackTimerFab(context)),
               AppPaynxBottomNav(
                 currentIndex: _index,
                 onSelect: (i) => setState(() => _index = i),
@@ -272,114 +263,100 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
           Positioned(
-            right: 12,
-            bottom: fabBottom,
-            child: ListenableBuilder(
-              listenable: AppServices.attackTimer,
-              builder: (context, _) {
-                final running = AppServices.attackTimer.isRunning;
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    if (_quickAccessExpanded) ...[
-                      _quickAccessMiniFab(
-                        heroTag: 'qa_emergency',
-                        icon: Icons.contact_phone_outlined,
-                        tooltip: 'Emergency contacts',
-                        backgroundColor: Colors.red.shade800,
-                        onPressed: () async {
-                          _collapseQuickAccess();
-                          await QuickAccessActions.openEmergencyContacts(context);
-                        },
-                      ),
-                      _quickAccessMiniFab(
-                        heroTag: 'qa_doctor',
-                        icon: Icons.local_hospital_outlined,
-                        tooltip: 'Call doctor',
-                        backgroundColor: Colors.blue.shade800,
-                        onPressed: () async {
-                          _collapseQuickAccess();
-                          await QuickAccessActions.openCallDoctor(context);
-                        },
-                      ),
-                      _quickAccessMiniFab(
-                        heroTag: 'qa_share_loc',
-                        icon: Icons.share_location,
-                        tooltip: 'Share location',
-                        backgroundColor: Colors.teal.shade700,
-                        onPressed: () async {
-                          _collapseQuickAccess();
-                          await QuickAccessActions.shareLocation(context);
-                        },
-                      ),
-                      _quickAccessMiniFab(
-                        heroTag: 'qa_severe',
-                        icon: Icons.warning_amber_rounded,
-                        tooltip: 'Severe symptom checklist',
-                        backgroundColor: Colors.deepOrange.shade800,
-                        onPressed: () {
-                          _collapseQuickAccess();
-                          QuickAccessActions.openSevereChecklist(context);
-                        },
-                      ),
-                    ],
-                    FloatingActionButton(
-                      heroTag: 'fab_quick_access',
-                      onPressed: () {
-                        setState(() {
-                          _quickAccessExpanded = !_quickAccessExpanded;
-                        });
-                      },
-                      backgroundColor: _quickAccessExpanded
-                          ? Colors.grey.shade800
-                          : const Color(0xFFE64A45),
-                      foregroundColor: Colors.white,
-                      elevation: 10,
-                      tooltip: _quickAccessExpanded
-                          ? 'Close quick access'
-                          : 'Quick access',
-                      child: Icon(
-                        _quickAccessExpanded ? Icons.close : Icons.bolt,
-                        size: 26,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (isPatient) ...[
-                      FloatingActionButton(
-                        heroTag: 'fab_attack_timer',
-                        onPressed: () => _onAttackTimerFab(context),
-                        backgroundColor: running
-                            ? Colors.amber.shade700
-                            : ShellTokens.lime,
-                        foregroundColor: ShellTokens.bg,
-                        elevation: 10,
-                        tooltip: running
-                            ? 'Attack timer — tap to stop or log'
-                            : 'Start migraine attack timer',
-                        child: Icon(
-                          running ? Icons.timer : Icons.timer_outlined,
-                          size: 26,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    FloatingActionButton(
-                      heroTag: 'fab_chat',
-                      onPressed: _openChat,
-                      backgroundColor: ShellTokens.lime,
-                      foregroundColor: ShellTokens.bg,
-                      elevation: 10,
-                      tooltip: 'Clinic chat & AI assistant',
-                      child: const Icon(Icons.chat_bubble_rounded, size: 26),
-                    ),
-                  ],
-                );
-              },
+            right: 16,
+            bottom: chatBottom,
+            child: Material(
+              color: pp.accentSecondary,
+              elevation: 6,
+              shadowColor: pp.shadowElevated.first.color,
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: _openChat,
+                child: const SizedBox(
+                  width: 52,
+                  height: 52,
+                  child: Center(
+                    child: Text('💬', style: TextStyle(fontSize: 24)),
+                  ),
+                ),
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ShellTimerBar extends StatelessWidget {
+  const _ShellTimerBar({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final pp = context.pp;
+    return ListenableBuilder(
+      listenable: AppServices.attackTimer,
+      builder: (context, _) {
+        final running = AppServices.attackTimer.isRunning;
+        return Material(
+          color: pp.bgSecondary,
+          child: InkWell(
+            onTap: onPressed,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: pp.borderDefault),
+                  bottom: BorderSide(color: pp.borderDefault),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Text('⏱️', style: TextStyle(fontSize: 20)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      running
+                          ? AttackTimerService.formatElapsed(
+                              AppServices.attackTimer.elapsed,
+                            )
+                          : 'Pain timer — tap to start or open',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: pp.textPrimary,
+                          ),
+                    ),
+                  ),
+                  if (running)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: pp.accentWarningLight,
+                        borderRadius:
+                            BorderRadius.circular(PainpalRadii.pill),
+                      ),
+                      child: Text(
+                        'Live',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: pp.accentWarning,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -391,6 +368,10 @@ class _AppDrawer extends StatelessWidget {
     required this.onOpenSettings,
     required this.onOpenPatientProfile,
     required this.onOpenScheduleAppointment,
+    required this.onOpenEmergencyContacts,
+    required this.onOpenCallDoctor,
+    required this.onShareLocation,
+    required this.onOpenSevereChecklist,
   });
 
   final VoidCallback onCloseDrawer;
@@ -398,6 +379,10 @@ class _AppDrawer extends StatelessWidget {
   final VoidCallback onOpenSettings;
   final VoidCallback onOpenPatientProfile;
   final VoidCallback onOpenScheduleAppointment;
+  final VoidCallback onOpenEmergencyContacts;
+  final VoidCallback onOpenCallDoctor;
+  final VoidCallback onShareLocation;
+  final VoidCallback onOpenSevereChecklist;
 
   String _initials() {
     final name = AppServices.auth.patientProfile?.name.trim();
@@ -451,9 +436,10 @@ class _AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pp = context.pp;
 
     return Drawer(
-      backgroundColor: ShellTokens.surface,
+      backgroundColor: pp.bgCard,
       child: SafeArea(
         child: ListView(
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -467,15 +453,24 @@ class _AppDrawer extends StatelessWidget {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor: ShellTokens.lime.withValues(alpha: 0.2),
-                        foregroundColor: ShellTokens.lime,
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: LinearGradient(
+                            colors: [pp.accentPrimary, pp.accentSecondary],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        alignment: Alignment.center,
                         child: Text(
                           _initials(),
                           style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
+                            color: Colors.white,
                           ),
                         ),
                       ),
@@ -487,7 +482,7 @@ class _AppDrawer extends StatelessWidget {
                             Text(
                               _displayName(),
                               style: theme.textTheme.titleLarge?.copyWith(
-                                color: Colors.white,
+                                color: pp.textPrimary,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -497,15 +492,15 @@ class _AppDrawer extends StatelessWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.bodyMedium?.copyWith(
-                                color: Colors.grey.shade500,
+                                color: pp.textSecondary,
                                 height: 1.3,
                               ),
                             ),
                             const SizedBox(height: 12),
                             Text(
-                              'View profile',
+                              '👤 View profile',
                               style: theme.textTheme.labelLarge?.copyWith(
-                                color: ShellTokens.lime,
+                                color: pp.accentPrimary,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -514,7 +509,7 @@ class _AppDrawer extends StatelessWidget {
                       ),
                       Icon(
                         Icons.chevron_right_rounded,
-                        color: Colors.grey.shade600,
+                        color: pp.textTertiary,
                         size: 28,
                       ),
                     ],
@@ -522,27 +517,60 @@ class _AppDrawer extends StatelessWidget {
                 ),
               ),
             ),
-            Divider(height: 1, color: Colors.white.withValues(alpha: 0.08)),
+            Divider(height: 1, color: pp.borderDefault),
             ListTile(
-              leading: const Icon(Icons.settings_outlined, color: ShellTokens.lime),
-              title: const Text('Settings'),
+              leading: Icon(Icons.settings_outlined, color: pp.accentPrimary),
+              title: Text('Settings', style: TextStyle(color: pp.textPrimary)),
               onTap: onOpenSettings,
             ),
             ListTile(
-              leading: const Icon(Icons.event_available, color: ShellTokens.lime),
-              title: const Text('Schedule appointment'),
+              leading: Icon(Icons.event_available, color: pp.accentPrimary),
+              title: Text(
+                '📋 Schedule appointment',
+                style: TextStyle(color: pp.textPrimary),
+              ),
               subtitle: Text(
                 'With your linked doctors',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                style: TextStyle(color: pp.textSecondary, fontSize: 12),
               ),
               onTap: onOpenScheduleAppointment,
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text(
+                'Quick help ⚡',
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: pp.textSecondary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: Text('📞', style: TextStyle(fontSize: 22)),
+              title: Text('Emergency contacts', style: TextStyle(color: pp.textPrimary)),
+              onTap: onOpenEmergencyContacts,
+            ),
+            ListTile(
+              leading: Text('👩‍⚕️', style: TextStyle(fontSize: 22)),
+              title: Text('Call doctor / clinic', style: TextStyle(color: pp.textPrimary)),
+              onTap: onOpenCallDoctor,
+            ),
+            ListTile(
+              leading: Text('📍', style: TextStyle(fontSize: 22)),
+              title: Text('Share location', style: TextStyle(color: pp.textPrimary)),
+              onTap: onShareLocation,
+            ),
+            ListTile(
+              leading: Text('⚠️', style: TextStyle(fontSize: 22)),
+              title: Text('Severe symptoms', style: TextStyle(color: pp.textPrimary)),
+              onTap: onOpenSevereChecklist,
+            ),
             const Divider(height: 32),
             ListTile(
-              leading: Icon(Icons.logout, color: Colors.redAccent.shade100),
+              leading: Icon(Icons.logout, color: pp.accentDanger),
               title: Text(
                 'Sign out',
-                style: TextStyle(color: Colors.redAccent.shade100),
+                style: TextStyle(color: pp.accentDanger),
               ),
               onTap: () async {
                 onCloseDrawer();

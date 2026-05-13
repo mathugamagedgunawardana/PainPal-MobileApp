@@ -6,6 +6,7 @@ import '../data/database.dart';
 import '../data/models.dart';
 import '../data/patient_remote_api.dart';
 import '../services/app_services.dart';
+import '../theme/painpal_app_colors.dart';
 import '../widgets/custom_widgets.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -71,15 +72,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pp = context.pp;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F1218),
+      backgroundColor: pp.bgTertiary,
       appBar: widget.embedInShell
           ? null
           : AppBar(
-              title: const Text('History'),
-              elevation: 0,
-              backgroundColor: const Color(0xFF171B22),
+              title: const Text('📅 Attack history'),
               actions: [
                 IconButton(
                   icon: const Icon(Icons.refresh),
@@ -96,7 +96,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         children: [
           if (widget.embedInShell)
             Material(
-              color: const Color(0xFF171B22),
+              color: pp.bgCard,
               child: Align(
                 alignment: Alignment.centerRight,
                 child: IconButton(
@@ -116,17 +116,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
         children: [
           // MIGRAINE HISTORY SECTION
           SectionHeader(
-            title: 'Migraine Attack History',
-            subtitle: 'Review your recorded attacks',
+            title: 'Attack history 📅',
+            subtitle: 'Your recorded attacks',
             illustrationIcon: Icons.history,
           ),
           const SizedBox(height: 12),
           SegmentedButton<_MigraineViewMode>(
             style: SegmentedButton.styleFrom(
-              selectedBackgroundColor: const Color(0xFFB6F36B),
-              selectedForegroundColor: const Color(0xFF0F1218),
-              backgroundColor: const Color(0xFF171B22),
-              side: BorderSide(color: Colors.grey.shade700),
+              selectedBackgroundColor: pp.accentPrimary,
+              selectedForegroundColor: pp.textOnAccent,
+              backgroundColor: pp.bgSecondary,
+              side: BorderSide(color: pp.borderDefault),
             ),
             segments: const [
               ButtonSegment(
@@ -156,7 +156,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 return Center(
                   child: Column(
                     children: [
-                      Icon(Icons.inbox, size: 64, color: Colors.grey.shade600),
+                      Icon(Icons.inbox, size: 64, color: pp.textTertiary),
                       const SizedBox(height: 16),
                       Text(
                         'No migraine records yet',
@@ -166,7 +166,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       Text(
                         'Start logging your attacks to see them here',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.grey.shade400,
+                          color: pp.textSecondary,
                         ),
                       ),
                     ],
@@ -211,9 +211,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 }
-
-const _kAccent = Color(0xFFB6F36B);
-const _kSurface = Color(0xFF171B22);
 
 /// Month grid: dots on days with attacks; tap a day to see details.
 class _AttackHistoryCalendar extends StatelessWidget {
@@ -265,14 +262,15 @@ class _AttackHistoryCalendar extends StatelessWidget {
     });
 
     final theme = Theme.of(context);
+    final pp = context.pp;
     final title = DateFormat.yMMMEd().format(dayOnly);
 
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF0F1218),
+      backgroundColor: pp.bgCard,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(PainpalRadii.xl)),
       ),
       builder: (ctx) {
         final maxH = MediaQuery.sizeOf(ctx).height * 0.58;
@@ -373,6 +371,7 @@ class _AttackHistoryCalendar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pp = context.pp;
     final y = month.year;
     final m = month.month;
     final first = DateTime(y, m);
@@ -400,7 +399,7 @@ class _AttackHistoryCalendar extends StatelessWidget {
                 onMonthChanged(DateTime(prev.year, prev.month));
               },
               icon: const Icon(Icons.chevron_left),
-              color: _kAccent,
+              color: pp.accentPrimary,
             ),
             Expanded(
               child: Text(
@@ -417,7 +416,7 @@ class _AttackHistoryCalendar extends StatelessWidget {
                 onMonthChanged(DateTime(next.year, next.month));
               },
               icon: const Icon(Icons.chevron_right),
-              color: _kAccent,
+              color: pp.accentPrimary,
             ),
           ],
         ),
@@ -466,14 +465,14 @@ class _AttackHistoryCalendar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: _kSurface,
+                    color: pp.bgCard,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: isToday
-                          ? _kAccent
+                          ? pp.accentPrimary
                           : (n > 0
-                              ? _kAccent.withValues(alpha: 0.35)
-                              : Colors.grey.shade800),
+                              ? pp.accentPrimary.withValues(alpha: 0.45)
+                              : pp.borderDefault),
                       width: isToday ? 2 : 1,
                     ),
                   ),
@@ -484,7 +483,7 @@ class _AttackHistoryCalendar extends StatelessWidget {
                         '$dayNum',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: n > 0 ? Colors.white : Colors.grey.shade500,
+                          color: n > 0 ? pp.textPrimary : pp.textTertiary,
                         ),
                       ),
                       if (n > 0) ...[
@@ -495,13 +494,13 @@ class _AttackHistoryCalendar extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: _kAccent.withValues(alpha: 0.25),
+                            color: pp.accentPrimary,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
                             '$n',
                             style: theme.textTheme.labelSmall?.copyWith(
-                              color: _kAccent,
+                              color: pp.textOnAccent,
                               fontWeight: FontWeight.w800,
                               fontSize: 10,
                             ),
@@ -542,17 +541,22 @@ class _MigraineCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pp = context.pp;
     final timestamp = item.timestamp?.toLocal().toString().split('.').first ?? '-';
     final hasType = item.type != null && item.type!.isNotEmpty;
+    final intensityTone = item.intensity > 7
+        ? pp.accentDanger
+        : (item.intensity >= 4 ? pp.accentWarning : pp.accentSuccess);
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF171B22),
-        borderRadius: BorderRadius.circular(12),
+        color: pp.bgCard,
+        borderRadius: BorderRadius.circular(PainpalRadii.lg),
         border: Border.all(
-          color: hasType ? const Color(0xFFB6F36B) : Colors.grey.shade700,
-          width: 2,
+          color: hasType ? pp.accentPrimary : pp.borderDefault,
+          width: hasType ? 2 : 1,
         ),
+        boxShadow: pp.shadowCard,
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -564,12 +568,12 @@ class _MigraineCard extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFB6F36B).withValues(alpha: 0.2),
+                  color: pp.accentPrimaryLight,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.local_hospital,
-                  color: Color(0xFFB6F36B),
+                  color: pp.accentPrimary,
                 ),
               ),
               const SizedBox(width: 12),
@@ -578,15 +582,16 @@ class _MigraineCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Attack #${index + 1}',
+                      '🧠 Attack #${index + 1}',
                       style: theme.textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w600,
+                        color: pp.textPrimary,
                       ),
                     ),
                     Text(
                       timestamp,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.grey.shade400,
+                        color: pp.textTertiary,
                       ),
                     ),
                   ],
@@ -599,17 +604,20 @@ class _MigraineCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _StatChip(
-                  label: 'Duration',
+                  label: '⏱️ Duration',
                   value: '${item.durationHours}h',
                   icon: Icons.schedule,
+                  valueColor: pp.accentPrimary,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _StatChip(
-                  label: 'Intensity',
+                  label: '🔥 Intensity',
                   value: '${item.intensity}/10',
                   icon: Icons.thermostat_outlined,
+                  valueColor: intensityTone,
+                  valueBackground: intensityTone.withValues(alpha: 0.12),
                 ),
               ),
             ],
@@ -619,17 +627,19 @@ class _MigraineCard extends StatelessWidget {
             children: [
               Expanded(
                 child: _StatChip(
-                  label: 'Frequency',
+                  label: '📅 Frequency',
                   value: '${item.frequencyPerMonth}/mo',
                   icon: Icons.repeat,
+                  valueColor: pp.accentPrimary,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _StatChip(
-                  label: 'Location',
+                  label: '📍 Location',
                   value: item.location,
                   icon: Icons.location_on,
+                  valueColor: pp.accentPrimary,
                 ),
               ),
             ],
@@ -639,17 +649,17 @@ class _MigraineCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFB6F36B).withValues(alpha: 0.1),
+                color: pp.accentPrimaryLight,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.verified, color: Color(0xFFB6F36B)),
+                  Icon(Icons.verified, color: pp.accentPrimary),
                   const SizedBox(width: 8),
                   Text(
                     'Type: ${item.type}',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFFB6F36B),
+                      color: pp.accentPrimary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -667,21 +677,27 @@ class _StatChip extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
+  final Color valueColor;
+  final Color? valueBackground;
 
   const _StatChip({
     Key? key,
     required this.label,
     required this.value,
     required this.icon,
+    required this.valueColor,
+    this.valueBackground,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pp = context.pp;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade900,
+        color: pp.bgSecondary,
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: pp.borderDefault),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: Column(
@@ -690,22 +706,34 @@ class _StatChip extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 14, color: const Color(0xFFB6F36B)),
+              Icon(icon, size: 14, color: pp.textTertiary),
               const SizedBox(width: 4),
-              Text(
-                label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.grey.shade400,
+              Expanded(
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: pp.textSecondary,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 4),
-          Text(
-            value,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFFB6F36B),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: valueBackground ?? Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              value,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: valueColor,
+                fontSize: 13,
+              ),
             ),
           ),
         ],

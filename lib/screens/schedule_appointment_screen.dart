@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import '../data/auth_models.dart';
 import '../data/patient_appointments_api.dart';
 import '../services/app_services.dart';
-import '../theme/shell_tokens.dart';
+import '../theme/painpal_app_colors.dart';
 import '../widgets/custom_widgets.dart';
 
 /// Schedule a visit with a doctor linked to the patient in MongoDB.
@@ -143,9 +143,9 @@ class _ScheduleAppointmentScreenState extends State<ScheduleAppointmentScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Appointment scheduled'),
-          backgroundColor: Color(0xFFB6F36B),
+        SnackBar(
+          content: const Text('Appointment scheduled'),
+          backgroundColor: context.pp.accentSuccess,
         ),
       );
       await _bootstrap();
@@ -171,14 +171,12 @@ class _ScheduleAppointmentScreenState extends State<ScheduleAppointmentScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pp = context.pp;
 
     return Scaffold(
-      backgroundColor: ShellTokens.bg,
+      backgroundColor: pp.bgTertiary,
       appBar: AppBar(
-        title: const Text('Schedule appointment'),
-        backgroundColor: ShellTokens.surface,
-        foregroundColor: Colors.white,
-        elevation: 0,
+        title: const Text('📋 Schedule appointment'),
       ),
       body: _initialLoad && _doctors.isEmpty && _error == null
           ? const Center(child: CircularProgressIndicator())
@@ -194,7 +192,7 @@ class _ScheduleAppointmentScreenState extends State<ScheduleAppointmentScreen> {
                       child: Text(
                         _error!,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: Colors.orange.shade200,
+                          color: pp.accentWarning,
                         ),
                       ),
                     ),
@@ -209,21 +207,21 @@ class _ScheduleAppointmentScreenState extends State<ScheduleAppointmentScreen> {
                     Text(
                       'No linked doctors yet. Your clinic must activate a doctor–patient link before you can schedule.',
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey.shade400,
+                        color: pp.textSecondary,
                       ),
                     )
                   else ...[
                     DropdownButtonFormField<LinkedDoctorOption>(
                       value: _selectedDoctor,
-                      dropdownColor: ShellTokens.surface,
+                      dropdownColor: pp.bgCard,
                       decoration: InputDecoration(
                         labelText: 'Doctor',
-                        labelStyle: TextStyle(color: Colors.grey.shade500),
+                        labelStyle: TextStyle(color: pp.textSecondary),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: pp.textPrimary),
                       items: _doctors
                           .map(
                             (d) => DropdownMenuItem(
@@ -260,15 +258,15 @@ class _ScheduleAppointmentScreenState extends State<ScheduleAppointmentScreen> {
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
                       value: _visitType,
-                      dropdownColor: ShellTokens.surface,
+                      dropdownColor: pp.bgCard,
                       decoration: InputDecoration(
                         labelText: 'Visit type',
-                        labelStyle: TextStyle(color: Colors.grey.shade500),
+                        labelStyle: TextStyle(color: pp.textSecondary),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: pp.textPrimary),
                       items: _visitTypes
                           .map(
                             (t) => DropdownMenuItem(value: t, child: Text(t)),
@@ -284,7 +282,7 @@ class _ScheduleAppointmentScreenState extends State<ScheduleAppointmentScreen> {
                     TextField(
                       controller: _notesController,
                       maxLines: 3,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: pp.textPrimary),
                       decoration: const InputDecoration(
                         labelText: 'Notes for the clinic (optional)',
                         alignLabelWithHint: true,
@@ -303,7 +301,7 @@ class _ScheduleAppointmentScreenState extends State<ScheduleAppointmentScreen> {
                     Text(
                       'Your appointments',
                       style: theme.textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
+                        color: pp.textPrimary,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -311,18 +309,18 @@ class _ScheduleAppointmentScreenState extends State<ScheduleAppointmentScreen> {
                     ..._existing.map(
                       (a) => Card(
                         margin: const EdgeInsets.only(bottom: 10),
-                        color: ShellTokens.surface,
+                        color: pp.bgCard,
                         child: ListTile(
                           title: Text(
                             a.doctorName,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: pp.textPrimary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                           subtitle: Text(
                             '${DateFormat.yMMMd().add_jm().format(a.appointmentDate.toLocal())} · ${a.appointmentType}\n${a.status}',
-                            style: TextStyle(color: Colors.grey.shade500),
+                            style: TextStyle(color: pp.textSecondary),
                           ),
                           isThreeLine: true,
                         ),

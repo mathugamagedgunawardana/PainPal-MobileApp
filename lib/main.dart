@@ -3,14 +3,13 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'screens/session_shell.dart';
 import 'services/app_services.dart';
-import 'theme/shell_tokens.dart';
+import 'theme/painpal_app_colors.dart';
+import 'theme/painpal_theme_data.dart';
 
 Future<void> main() async {
-  // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables from .env file
-  await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: '.env');
   await AppServices.init();
 
   runApp(const PainpalApp());
@@ -21,44 +20,24 @@ class PainpalApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: ShellTokens.lime,
-      brightness: Brightness.dark,
-    ).copyWith(
-      primary: ShellTokens.lime,
-      surface: ShellTokens.surface,
-    );
-
-    return MaterialApp(
-      title: 'Painpal',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: scheme,
-        useMaterial3: true,
-        scaffoldBackgroundColor: ShellTokens.bg,
-        cardTheme: CardThemeData(
-          color: ShellTokens.surface,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(ShellTokens.cardRadius),
+    return ListenableBuilder(
+      listenable: AppServices.theme,
+      builder: (context, _) {
+        return MaterialApp(
+          title: 'Painpal',
+          debugShowCheckedModeBanner: false,
+          theme: buildPainpalTheme(
+            brightness: Brightness.light,
+            c: PainpalAppColors.light,
           ),
-        ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
+          darkTheme: buildPainpalTheme(
+            brightness: Brightness.dark,
+            c: PainpalAppColors.dark,
           ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: ShellTokens.surface,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-      ),
-      home: const SessionShell(),
+          themeMode: AppServices.theme.themeMode,
+          home: const SessionShell(),
+        );
+      },
     );
   }
 }

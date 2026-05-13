@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../theme/shell_tokens.dart';
+import '../theme/painpal_app_colors.dart';
 
 /// Red-flag symptoms — educational; not a substitute for professional care.
 class SevereSymptomChecklistScreen extends StatefulWidget {
@@ -46,13 +46,11 @@ class _SevereSymptomChecklistScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pp = context.pp;
     return Scaffold(
-      backgroundColor: ShellTokens.bg,
+      backgroundColor: pp.bgTertiary,
       appBar: AppBar(
         title: const Text('Severe symptom checklist'),
-        backgroundColor: ShellTokens.surface,
-        foregroundColor: Colors.white,
-        elevation: 0,
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -116,7 +114,7 @@ class _SevereSymptomChecklistScreenState
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Material(
-                color: ShellTokens.surface,
+                color: pp.bgCard,
                 borderRadius: BorderRadius.circular(12),
                 child: CheckboxListTile(
                   value: _checked[t] ?? false,
@@ -125,10 +123,10 @@ class _SevereSymptomChecklistScreenState
                     t,
                     style: theme.textTheme.bodyMedium?.copyWith(height: 1.35),
                   ),
-                  checkColor: ShellTokens.bg,
+                  checkColor: pp.textOnAccent,
                   fillColor: WidgetStateProperty.resolveWith((states) {
                     if (states.contains(WidgetState.selected)) {
-                      return ShellTokens.lime;
+                      return pp.accentPrimary;
                     }
                     return null;
                   }),

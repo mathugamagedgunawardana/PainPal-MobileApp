@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../services/app_services.dart';
-import '../theme/shell_tokens.dart';
+import '../theme/painpal_app_colors.dart';
 
 /// Full-screen profile (LinkedIn-style summary) for the signed-in user.
 class PatientProfileScreen extends StatelessWidget {
@@ -48,13 +48,12 @@ class PatientProfileScreen extends StatelessWidget {
       user?.email,
     );
 
+    final pp = context.pp;
+
     return Scaffold(
-      backgroundColor: ShellTokens.bg,
+      backgroundColor: pp.bgTertiary,
       appBar: AppBar(
-        title: const Text('Profile'),
-        backgroundColor: ShellTokens.surface,
-        foregroundColor: Colors.white,
-        elevation: 0,
+        title: const Text('👤 Profile'),
       ),
       body: ListView(
         padding: EdgeInsets.zero,
@@ -67,26 +66,35 @@ class PatientProfileScreen extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  ShellTokens.surface,
-                  ShellTokens.surface.withValues(alpha: 0.85),
+                  pp.accentPrimaryLight,
+                  pp.bgSecondary,
                 ],
               ),
               border: Border(
-                bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+                bottom: BorderSide(color: pp.borderDefault),
               ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  radius: 48,
-                  backgroundColor: ShellTokens.lime.withValues(alpha: 0.22),
-                  foregroundColor: ShellTokens.lime,
+                Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [pp.accentPrimary, pp.accentSecondary],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  alignment: Alignment.center,
                   child: Text(
                     initials,
                     style: const TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.w800,
+                      color: Colors.white,
                     ),
                   ),
                 ),
@@ -94,7 +102,7 @@ class PatientProfileScreen extends StatelessWidget {
                 Text(
                   displayName,
                   style: theme.textTheme.headlineSmall?.copyWith(
-                    color: Colors.white,
+                    color: pp.textPrimary,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -103,7 +111,7 @@ class PatientProfileScreen extends StatelessWidget {
                   Text(
                     headline,
                     style: theme.textTheme.bodyLarge?.copyWith(
-                      color: Colors.grey.shade400,
+                      color: pp.textSecondary,
                       height: 1.35,
                     ),
                   ),
@@ -113,13 +121,14 @@ class PatientProfileScreen extends StatelessWidget {
                   Chip(
                     label: Text(
                       user.role.name.toUpperCase(),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
+                        color: pp.accentPrimary,
                       ),
                     ),
-                    backgroundColor: ShellTokens.lime.withValues(alpha: 0.15),
-                    side: BorderSide.none,
+                    backgroundColor: pp.bgCard,
+                    side: BorderSide(color: pp.borderDefault),
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                   ),
                 ],
@@ -195,7 +204,7 @@ class PatientProfileScreen extends StatelessWidget {
                     child: Text(
                       'Extended profile appears when you sign in with a role that includes a clinic profile.',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.grey.shade500,
+                        color: pp.textSecondary,
                       ),
                     ),
                   ),
@@ -222,12 +231,13 @@ class _ProfileTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pp = context.pp;
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 22, color: ShellTokens.lime.withValues(alpha: 0.85)),
+          Icon(icon, size: 22, color: pp.accentPrimary),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -236,7 +246,7 @@ class _ProfileTile extends StatelessWidget {
                 Text(
                   label,
                   style: theme.textTheme.labelMedium?.copyWith(
-                    color: Colors.grey.shade500,
+                    color: pp.textSecondary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -244,7 +254,7 @@ class _ProfileTile extends StatelessWidget {
                 SelectableText(
                   value,
                   style: theme.textTheme.bodyLarge?.copyWith(
-                    color: Colors.white,
+                    color: pp.textPrimary,
                     height: 1.3,
                   ),
                 ),

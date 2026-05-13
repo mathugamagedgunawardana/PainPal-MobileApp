@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/auth_models.dart';
 import '../data/auth_service.dart' show AuthException;
 import '../services/app_services.dart';
-
-const _kAccent = Color(0xFFB6F36B);
-const _kBg = Color(0xFF0F1218);
-const _kSurface = Color(0xFF171B22);
+import '../theme/painpal_app_colors.dart';
 
 /// Pushes with [Navigator]; pops with `true` after successful patient login.
 class LoginScreen extends StatefulWidget {
@@ -84,14 +81,12 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final pp = context.pp;
 
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: pp.bgTertiary,
       appBar: AppBar(
         title: const Text('Sign in'),
-        backgroundColor: _kSurface,
-        foregroundColor: scheme.onSurface,
-        elevation: 0,
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -113,9 +108,10 @@ class _LoginScreenState extends State<LoginScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: _kSurface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade800),
+              color: pp.bgCard,
+              borderRadius: BorderRadius.circular(PainpalRadii.lg),
+              border: Border.all(color: pp.borderDefault),
+              boxShadow: pp.shadowCard,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -140,15 +136,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 16),
                 FilledButton(
                   onPressed: _submitting ? null : _submit,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _kAccent,
-                    foregroundColor: _kBg,
-                  ),
                   child: _submitting
-                      ? const SizedBox(
+                      ? SizedBox(
                           height: 22,
                           width: 22,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: pp.textOnAccent,
+                          ),
                         )
                       : const Text('Sign in'),
                 ),

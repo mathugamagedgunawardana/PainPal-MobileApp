@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../services/app_services.dart';
-import '../theme/shell_tokens.dart';
+import '../theme/painpal_app_colors.dart';
 
-/// LinkedIn-style top row: avatar + name opens the drawer.
+/// Top row: gradient avatar + name opens the drawer; theme toggle (🌙 / ☀️).
 class AppShellHeader extends StatelessWidget {
   const AppShellHeader({
     super.key,
@@ -47,28 +47,40 @@ class AppShellHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final pp = context.pp;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Material(
-      color: ShellTokens.surface,
+      color: pp.bgCard,
       child: InkWell(
         onTap: onOpenDrawer,
         child: Padding(
           padding: EdgeInsets.fromLTRB(
             12,
             8 + MediaQuery.paddingOf(context).top,
-            16,
+            12,
             12,
           ),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: ShellTokens.lime.withValues(alpha: 0.25),
-                foregroundColor: ShellTokens.lime,
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [pp.accentPrimary, pp.accentSecondary],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                alignment: Alignment.center,
                 child: Text(
                   _initials(),
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 15,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -83,8 +95,9 @@ class AppShellHeader extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
+                            color: pp.textPrimary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
                           ),
                     ),
                     const SizedBox(height: 2),
@@ -93,16 +106,25 @@ class AppShellHeader extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey.shade500,
+                            color: pp.textTertiary,
                             fontWeight: FontWeight.w500,
+                            fontSize: 13,
                           ),
                     ),
                   ],
                 ),
               ),
+              IconButton(
+                tooltip: isDark ? 'Switch to light mode' : 'Switch to dark mode',
+                onPressed: () => AppServices.theme.toggleLightDark(),
+                icon: Text(
+                  isDark ? '☀️' : '🌙',
+                  style: const TextStyle(fontSize: 22),
+                ),
+              ),
               Icon(
                 Icons.keyboard_arrow_down_rounded,
-                color: Colors.grey.shade600,
+                color: pp.textTertiary,
               ),
             ],
           ),

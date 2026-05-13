@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/painpal_app_colors.dart';
+
 /// A large, easy-to-tap slider for migraine patients
 class IntensitySlider extends StatelessWidget {
   final int value;
@@ -18,6 +20,7 @@ class IntensitySlider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pp = context.pp;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(
@@ -28,15 +31,16 @@ class IntensitySlider extends StatelessWidget {
           Text(
             description,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.grey.shade400,
+              color: pp.textSecondary,
             ),
           ),
           const SizedBox(height: 16),
           Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF171B22),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.shade700),
+              color: pp.bgCard,
+              borderRadius: BorderRadius.circular(PainpalRadii.xl),
+              border: Border.all(color: pp.borderDefault),
+              boxShadow: pp.shadowCard,
             ),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Column(
@@ -52,10 +56,10 @@ class IntensitySlider extends StatelessWidget {
                 SliderTheme(
                   data: SliderThemeData(
                     trackHeight: 8,
-                    activeTrackColor: const Color(0xFFB6F36B),
-                    inactiveTrackColor: Colors.grey.shade700,
-                    thumbColor: const Color(0xFFB6F36B),
-                    overlayColor: const Color(0xFFB6F36B).withValues(alpha: 0.3),
+                    activeTrackColor: pp.accentPrimary,
+                    inactiveTrackColor: pp.borderDefault,
+                    thumbColor: pp.accentPrimary,
+                    overlayColor: pp.accentPrimary.withValues(alpha: 0.28),
                     thumbShape: const RoundSliderThumbShape(
                       elevation: 4,
                       enabledThumbRadius: 14,
@@ -73,7 +77,7 @@ class IntensitySlider extends StatelessWidget {
                 Text(
                   value.toString(),
                   style: theme.textTheme.headlineSmall?.copyWith(
-                    color: const Color(0xFFB6F36B),
+                    color: pp.accentPrimary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -104,15 +108,16 @@ class SymptomToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pp = context.pp;
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: value ? const Color(0xFFB6F36B).withValues(alpha: 0.1) : null,
+        color: value ? pp.accentPrimaryLight : null,
         border: Border.all(
-          color: value ? const Color(0xFFB6F36B) : Colors.grey.shade700,
-          width: 2,
+          color: value ? pp.accentPrimary : pp.borderDefault,
+          width: value ? 2 : 1,
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(PainpalRadii.md),
       ),
       child: InkWell(
         onTap: () => onChanged(!value),
@@ -137,7 +142,7 @@ class SymptomToggle extends StatelessWidget {
                       Text(
                         description!,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.grey.shade400,
+                          color: pp.textSecondary,
                         ),
                       ),
                     ],
@@ -150,8 +155,8 @@ class SymptomToggle extends StatelessWidget {
                 height: 32,
                 decoration: BoxDecoration(
                   color: value
-                      ? const Color(0xFFB6F36B)
-                      : Colors.grey.shade700,
+                      ? pp.accentPrimary
+                      : pp.borderDefault,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Stack(
@@ -168,8 +173,8 @@ class SymptomToggle extends StatelessWidget {
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: value
-                            ? const Icon(Icons.check,
-                                color: Color(0xFF0F1218), size: 16)
+                            ? Icon(Icons.check,
+                                color: pp.textPrimary, size: 16)
                             : null,
                       ),
                     ),
@@ -203,20 +208,24 @@ class MigraineButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final pp = context.pp;
     if (isOutlined) {
       return OutlinedButton.icon(
         onPressed: (isLoading || onPressed == null) ? null : onPressed,
         icon: isLoading
-            ? const SizedBox(
+            ? SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: pp.accentPrimary,
+                ),
               )
             : Icon(icon ?? Icons.check),
         label: Text(label, style: const TextStyle(fontSize: 16)),
         style: OutlinedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          side: const BorderSide(color: Color(0xFFB6F36B), width: 2),
+          side: BorderSide(color: pp.accentPrimary, width: 2),
         ),
       );
     }
@@ -224,19 +233,17 @@ class MigraineButton extends StatelessWidget {
     return FilledButton.icon(
       onPressed: (isLoading || onPressed == null) ? null : onPressed,
       icon: isLoading
-          ? const SizedBox(
+          ? SizedBox(
               width: 20,
               height: 20,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
               ),
             )
           : Icon(icon ?? Icons.check),
       label: Text(label, style: const TextStyle(fontSize: 16)),
       style: FilledButton.styleFrom(
-        backgroundColor: const Color(0xFFB6F36B),
-        foregroundColor: Colors.black,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       ),
     );
@@ -261,11 +268,13 @@ class ResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pp = context.pp;
     return Container(
       decoration: BoxDecoration(
-        color: backgroundColor ?? const Color(0xFF171B22),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFB6F36B), width: 2),
+        color: backgroundColor ?? pp.bgCard,
+        borderRadius: BorderRadius.circular(PainpalRadii.lg),
+        border: Border.all(color: pp.accentPrimary, width: 2),
+        boxShadow: pp.shadowCard,
       ),
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -273,13 +282,13 @@ class ResultCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, color: const Color(0xFFB6F36B), size: 28),
+              Icon(icon, color: pp.accentPrimary, size: 28),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   title,
                   style: theme.textTheme.titleMedium?.copyWith(
-                    color: const Color(0xFFB6F36B),
+                    color: pp.accentPrimary,
                   ),
                 ),
               ),
@@ -312,6 +321,7 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pp = context.pp;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 20),
       child: Column(
@@ -321,13 +331,14 @@ class SectionHeader extends StatelessWidget {
             Icon(
               illustrationIcon,
               size: 40,
-              color: const Color(0xFFB6F36B),
+              color: pp.accentPrimary,
             ),
           const SizedBox(height: 8),
           Text(
             title,
             style: theme.textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.bold,
+              color: pp.textPrimary,
             ),
           ),
           if (subtitle != null) ...[
@@ -335,7 +346,7 @@ class SectionHeader extends StatelessWidget {
             Text(
               subtitle!,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.grey.shade400,
+                color: pp.textSecondary,
               ),
             ),
           ],
@@ -365,6 +376,7 @@ class CustomDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pp = context.pp;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -376,23 +388,24 @@ class CustomDropdown extends StatelessWidget {
           Text(
             description!,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.grey.shade400,
+              color: pp.textSecondary,
             ),
           ),
         ],
         const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF171B22),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade700),
+            color: pp.bgCard,
+            borderRadius: BorderRadius.circular(PainpalRadii.md),
+            border: Border.all(color: pp.borderDefault),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: value,
               isExpanded: true,
-              dropdownColor: const Color(0xFF171B22),
+              dropdownColor: pp.bgCard,
+              style: TextStyle(color: pp.textPrimary),
               items: options
                   .map((option) => DropdownMenuItem(
                         value: option,

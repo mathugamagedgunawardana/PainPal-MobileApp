@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-const _kAccent = Color(0xFFB6F36B);
-const _kSurface = Color(0xFF171B22);
+import '../theme/painpal_app_colors.dart';
 
 /// Pain sites: diagram + chips. Stored value is the site id (e.g. `Left temple`).
 class HeadPainSitePicker extends StatelessWidget {
@@ -26,6 +25,7 @@ class HeadPainSitePicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final pp = context.pp;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -36,7 +36,7 @@ class HeadPainSitePicker extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           'Tap the diagram or a label below',
-          style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade500),
+          style: theme.textTheme.bodySmall?.copyWith(color: pp.textTertiary),
         ),
         const SizedBox(height: 12),
         Center(
@@ -48,7 +48,13 @@ class HeadPainSitePicker extends StatelessWidget {
               children: [
                 CustomPaint(
                   size: const Size(220, 200),
-                  painter: _HeadDiagramPainter(highlight: value),
+                  painter: _HeadDiagramPainter(
+                    highlight: value,
+                    accent: pp.accentPrimary,
+                    outlineColor: pp.borderDefault,
+                    headFill: pp.bgSecondary,
+                    dotIdle: pp.textTertiary,
+                  ),
                 ),
                 Positioned(
                   left: 24,
@@ -129,16 +135,16 @@ class HeadPainSitePicker extends StatelessWidget {
               label: Text(s.label),
               selected: selected,
               onSelected: (_) => onChanged(s.id),
-              selectedColor: _kAccent.withValues(alpha: 0.35),
-              checkmarkColor: _kAccent,
+              selectedColor: pp.accentPrimary,
+              checkmarkColor: pp.textOnAccent,
               labelStyle: TextStyle(
-                color: selected ? _kAccent : Colors.grey.shade300,
+                color: selected ? pp.textOnAccent : pp.textPrimary,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               ),
               side: BorderSide(
-                color: selected ? _kAccent : Colors.grey.shade700,
+                color: selected ? pp.accentPrimary : pp.borderDefault,
               ),
-              backgroundColor: _kSurface,
+              backgroundColor: pp.bgCard,
             );
           }).toList(),
         ),
@@ -148,9 +154,19 @@ class HeadPainSitePicker extends StatelessWidget {
 }
 
 class _HeadDiagramPainter extends CustomPainter {
-  _HeadDiagramPainter({required this.highlight});
+  _HeadDiagramPainter({
+    required this.highlight,
+    required this.accent,
+    required this.outlineColor,
+    required this.headFill,
+    required this.dotIdle,
+  });
 
   final String highlight;
+  final Color accent;
+  final Color outlineColor;
+  final Color headFill;
+  final Color dotIdle;
 
   bool _is(String id) => highlight == id;
 
@@ -164,16 +180,16 @@ class _HeadDiagramPainter extends CustomPainter {
     final outline = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.5
-      ..color = Colors.grey.shade500;
+      ..color = outlineColor;
 
-    final fill = Paint()..color = const Color(0xFF1E232C);
+    final fill = Paint()..color = headFill;
 
     canvas.drawOval(headRect, fill);
 
     if (_is('Diffuse')) {
       canvas.drawOval(
         headRect.inflate(6),
-        Paint()..color = _kAccent.withValues(alpha: 0.2),
+        Paint()..color = accent.withValues(alpha: 0.2),
       );
     }
     if (_is('Left temple')) {
@@ -183,7 +199,7 @@ class _HeadDiagramPainter extends CustomPainter {
         headRect.width * 0.38,
         headRect.height * 0.55,
       );
-      canvas.drawRect(r, Paint()..color = _kAccent.withValues(alpha: 0.25));
+      canvas.drawRect(r, Paint()..color = accent.withValues(alpha: 0.4));
     }
     if (_is('Right temple')) {
       final r = Rect.fromLTWH(
@@ -192,7 +208,7 @@ class _HeadDiagramPainter extends CustomPainter {
         headRect.width * 0.38,
         headRect.height * 0.55,
       );
-      canvas.drawRect(r, Paint()..color = _kAccent.withValues(alpha: 0.25));
+      canvas.drawRect(r, Paint()..color = accent.withValues(alpha: 0.4));
     }
     if (_is('Forehead')) {
       final r = Rect.fromCenter(
@@ -202,7 +218,7 @@ class _HeadDiagramPainter extends CustomPainter {
       );
       canvas.drawRRect(
         RRect.fromRectAndRadius(r, const Radius.circular(12)),
-        Paint()..color = _kAccent.withValues(alpha: 0.25),
+        Paint()..color = accent.withValues(alpha: 0.4),
       );
     }
     if (_is('Occipital')) {
@@ -213,7 +229,7 @@ class _HeadDiagramPainter extends CustomPainter {
       );
       canvas.drawRRect(
         RRect.fromRectAndRadius(r, const Radius.circular(14)),
-        Paint()..color = _kAccent.withValues(alpha: 0.25),
+        Paint()..color = accent.withValues(alpha: 0.4),
       );
     }
     if (_is('Neck')) {
@@ -224,12 +240,12 @@ class _HeadDiagramPainter extends CustomPainter {
       );
       canvas.drawRRect(
         RRect.fromRectAndRadius(neck, const Radius.circular(10)),
-        Paint()..color = _kAccent.withValues(alpha: 0.28),
+        Paint()..color = accent.withValues(alpha: 0.45),
       );
       canvas.drawRRect(RRect.fromRectAndRadius(neck, const Radius.circular(10)), outline);
     }
 
-    final eyePaint = Paint()..color = Colors.grey.shade600;
+    final eyePaint = Paint()..color = dotIdle;
     canvas.drawCircle(Offset(center.dx - w * 0.14, center.dy - h * 0.02), 4, eyePaint);
     canvas.drawCircle(Offset(center.dx + w * 0.14, center.dy - h * 0.02), 4, eyePaint);
 
@@ -238,5 +254,9 @@ class _HeadDiagramPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _HeadDiagramPainter oldDelegate) =>
-      oldDelegate.highlight != highlight;
+      oldDelegate.highlight != highlight ||
+      oldDelegate.accent != accent ||
+      oldDelegate.outlineColor != outlineColor ||
+      oldDelegate.headFill != headFill ||
+      oldDelegate.dotIdle != dotIdle;
 }

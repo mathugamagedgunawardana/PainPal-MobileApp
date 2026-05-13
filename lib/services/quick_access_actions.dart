@@ -11,7 +11,7 @@ import '../data/patient_appointments_api.dart';
 import '../data/storage.dart';
 import '../screens/severe_symptom_checklist_screen.dart';
 import '../services/app_services.dart';
-import '../theme/shell_tokens.dart';
+import '../theme/painpal_app_colors.dart';
 
 // #region agent log
 const _agentIngest =
@@ -63,7 +63,7 @@ abstract final class QuickAccessActions {
 
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: ShellTokens.surface,
+      backgroundColor: context.pp.bgCard,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -100,15 +100,15 @@ abstract final class QuickAccessActions {
                     else
                       ...list.map((e) {
                         return ListTile(
-                          leading: const Icon(
+                          leading: Icon(
                             Icons.person_pin_circle_outlined,
-                            color: ShellTokens.limeMuted,
+                            color: ctx.pp.accentPrimary,
                           ),
                           title: Text(e.name.isEmpty ? 'Contact' : e.name),
                           subtitle: Text(e.phone),
-                          trailing: const Icon(
+                          trailing: Icon(
                             Icons.call,
-                            color: ShellTokens.limeMuted,
+                            color: ctx.pp.accentPrimary,
                           ),
                           onTap: () => _dialPhone(context, e.phone),
                         );
@@ -271,7 +271,7 @@ abstract final class QuickAccessActions {
 
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: ShellTokens.surface,
+      backgroundColor: context.pp.bgCard,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -332,15 +332,15 @@ abstract final class QuickAccessActions {
                             'https://www.google.com/maps/search/?api=1&query=$query',
                           );
                           return Card(
-                            color: ShellTokens.bg,
+                            color: ctx.pp.bgSecondary,
                             child: ListTile(
                               title: Text(d.name),
                               subtitle: Text(
                                 '${d.specialization}\n${d.clinicName}',
                               ),
                               isThreeLine: true,
-                              trailing: const Icon(Icons.map_outlined,
-                                  color: ShellTokens.limeMuted),
+                              trailing: Icon(Icons.map_outlined,
+                                  color: ctx.pp.accentPrimary),
                               onTap: () async {
                                 if (await canLaunchUrl(mapsUri)) {
                                   await launchUrl(

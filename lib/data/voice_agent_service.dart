@@ -1,10 +1,14 @@
 import 'package:flutter/services.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 
-/// Service for handling voice input and output
+import '../services/painpal_tts_service.dart';
+
+/// Voice input (platform channel) + Text-to-speech via [PainpalTtsService].
+///
+/// TTS is never created here: [PainpalTtsService] owns [FlutterTts], init order,
+/// voice selection, and serialized [speak].
 class VoiceAgentService {
   static const platform = MethodChannel('com.painpal.voice/channel');
-  FlutterTts? _flutterTts;
+
   bool _isListening = false;
   bool _isSpeaking = false;
   String _lastWords = '';
@@ -23,19 +27,6 @@ class VoiceAgentService {
 
   VoiceAgentService() {
     _setupMethodChannel();
-  }
-
-  /// Avoid starting the Android TTS engine until [speak] runs (reduces emulator churn / log spam).
-  Future<void> _ensureTts() async {
-    if (_flutterTts != null) {
-      return;
-    }
-    final tts = FlutterTts();
-    await tts.setLanguage('en-US');
-    await tts.setSpeechRate(0.85);
-    await tts.setVolume(1.0);
-    await tts.setPitch(1.0);
-    _flutterTts = tts;
   }
 
   void _setupMethodChannel() {
@@ -77,7 +68,6 @@ class VoiceAgentService {
   /// Start listening for speech
   Future<void> startListening() async {
     try {
-      // First initialize if needed
       final initialized = await initializeSpeechToText();
       if (!initialized) {
         throw Exception('Speech recognition not available');
@@ -109,30 +99,25 @@ class VoiceAgentService {
     }
   }
 
-  /// Speak text using text-to-speech
+  /// Speak text using shared TTS (never call before [PainpalTtsService] init completes).
   Future<void> speak(String text) async {
-    await _ensureTts();
-    final tts = _flutterTts!;
     if (_isSpeaking) {
-      await tts.stop();
+      await PainpalTtsService.instance.stop();
     }
-
     _isSpeaking = true;
     try {
-      await tts.speak(text);
-      _isSpeaking = false;
+      await PainpalTtsService.instance.speak(text);
     } catch (e) {
-      _isSpeaking = false;
       throw Exception('Failed to speak: $e');
+    } finally {
+      _isSpeaking = false;
     }
   }
 
   /// Stop speaking
   Future<void> stopSpeaking() async {
-    if (_isSpeaking && _flutterTts != null) {
-      await _flutterTts!.stop();
-      _isSpeaking = false;
-    }
+    await PainpalTtsService.instance.stop();
+    _isSpeaking = false;
   }
 
   /// Get last recognized words
@@ -149,9 +134,6 @@ class VoiceAgentService {
     try {
       await stopListening();
       await stopSpeaking();
-      if (_flutterTts != null) {
-        await _flutterTts!.stop();
-      }
       await platform.invokeMethod('dispose');
     } catch (e) {
       // Ignore errors during cleanup

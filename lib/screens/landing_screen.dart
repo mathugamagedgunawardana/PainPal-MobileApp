@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-const _kAccent = Color(0xFFB6F36B);
-const _kBg = Color(0xFF0F1218);
+import '../theme/painpal_app_colors.dart';
+import '../widgets/painpal_illustrations.dart';
 
 /// First screen for signed-out users: brand intro and entry to [LoginScreen].
 class LandingScreen extends StatelessWidget {
@@ -13,77 +13,75 @@ class LandingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final pp = context.pp;
 
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: pp.bgTertiary,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Spacer(flex: 2),
-              Center(
-                child: Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    color: _kAccent,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _kAccent.withValues(alpha: 0.35),
-                        blurRadius: 32,
-                        spreadRadius: 0,
-                      ),
-                    ],
-                  ),
-                  child: const Icon(Icons.health_and_safety, color: _kBg, size: 52),
-                ),
-              ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 12),
               Text(
                 'Painpal',
                 textAlign: TextAlign.center,
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: pp.textTertiary,
+                  letterSpacing: 1.2,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 20),
+              PainpalMoodCollage(
+                height: MediaQuery.sizeOf(context).height * 0.28,
+                borderRadius: PainpalRadii.cardBubble,
+              ),
+              const SizedBox(height: 28),
               Text(
-                'Track migraines, review history, and stay on top of your patterns — privately and in one place.',
+                'Not sure how\nyou\'re feeling?',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.8,
+                  color: pp.textPrimary,
+                  height: 1.15,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Track migraines with friendly visuals — patterns, history, and care in one calm place.',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: scheme.onSurfaceVariant,
                   height: 1.45,
                 ),
               ),
-              const Spacer(flex: 3),
-              FilledButton(
+              const Spacer(),
+              FilledButton.icon(
                 onPressed: onSignIn,
+                icon: const Icon(Icons.arrow_forward_rounded, size: 22),
+                label: const Text(
+                  'Let\'s go',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+                ),
                 style: FilledButton.styleFrom(
-                  backgroundColor: _kAccent,
-                  foregroundColor: _kBg,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(PainpalRadii.pill),
                   ),
-                ),
-                child: const Text(
-                  'Sign in',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                 ),
               ),
               const SizedBox(height: 12),
               Text(
-                'You need an account to use the app. Configure API URL in Settings after signing in.',
+                'Sign in with your patient account. Set API URL in Settings anytime.',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
+                  color: pp.textTertiary,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
             ],
           ),
         ),

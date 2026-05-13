@@ -4,6 +4,7 @@ import '../data/auth_models.dart';
 import '../data/database.dart';
 import '../data/patient_analytics_api.dart';
 import '../services/app_services.dart';
+import '../theme/painpal_app_colors.dart';
 import '../widgets/analytics_widgets.dart';
 
 class AnalyticsScreen extends StatefulWidget {
@@ -426,23 +427,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   Widget build(BuildContext context) {
 	final theme = Theme.of(context);
 	final scheme = theme.colorScheme;
-	const surfaceBar = Color(0xFF171B22);
-	const accent = Color(0xFFB6F36B);
+	final pp = context.pp;
 
 	return Scaffold(
-	  backgroundColor: const Color(0xFF0F1218),
+	  backgroundColor: pp.bgTertiary,
 	  appBar: widget.embedInShell
 		  ? null
 		  : AppBar(
-		backgroundColor: surfaceBar,
-		foregroundColor: scheme.onSurface,
-		elevation: 0,
-		scrolledUnderElevation: 0,
 		title: Text(
-		  'Analytics',
+		  '📊 Stats',
 		  style: theme.textTheme.titleLarge?.copyWith(
 			fontWeight: FontWeight.w800,
-			color: scheme.onSurface,
 		  ),
 		),
 	  ),
@@ -467,8 +462,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 		  final data = snapshot.data!;
 
 		  return RefreshIndicator(
-			color: accent,
-			backgroundColor: surfaceBar,
+			color: pp.accentPrimary,
+			backgroundColor: pp.bgCard,
 			onRefresh: () async {
 			  setState(() {
 				_analyticsFuture = _loadAnalytics();
@@ -602,7 +597,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 									  if (data.nextAttack!.intensity != null)
 										'Intensity ${data.nextAttack!.intensity!.toStringAsFixed(1)}/10',
 									].join(' · '),
-									style: theme.textTheme.bodySmall?.copyWith(color: accent),
+									style: theme.textTheme.bodySmall?.copyWith(
+									  color: context.pp.textSecondary,
+									),
 								  ),
 								],
 								if (data.nextAttackDisclaimer != null &&
@@ -624,16 +621,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 						Container(
 						  padding: const EdgeInsets.all(12),
 						  decoration: BoxDecoration(
-							color: accent.withValues(alpha: 0.12),
+							color: context.pp.accentSuccessLight,
 							borderRadius: BorderRadius.circular(12),
 							border: Border.all(
-							  color: accent.withValues(alpha: 0.35),
+							  color: context.pp.accentSuccess.withValues(alpha: 0.45),
 							),
 						  ),
 						  child: Row(
 							crossAxisAlignment: CrossAxisAlignment.start,
 							children: [
-							  Icon(Icons.auto_awesome, color: accent),
+							  Icon(Icons.auto_awesome, color: context.pp.accentSuccess),
 							  const SizedBox(width: 10),
 							  Expanded(
 								child: Text(
