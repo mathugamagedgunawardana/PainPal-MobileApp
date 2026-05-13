@@ -7,7 +7,10 @@ import '../services/app_services.dart';
 import '../widgets/analytics_widgets.dart';
 
 class AnalyticsScreen extends StatefulWidget {
-  const AnalyticsScreen({super.key});
+  const AnalyticsScreen({super.key, this.embedInShell = false});
+
+  /// When true, [HomeScreen] provides the shell header; hide local [AppBar].
+  final bool embedInShell;
 
   @override
   State<AnalyticsScreen> createState() => _AnalyticsScreenState();
@@ -427,7 +430,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 	const accent = Color(0xFFB6F36B);
 
 	return Scaffold(
-	  appBar: AppBar(
+	  backgroundColor: const Color(0xFF0F1218),
+	  appBar: widget.embedInShell
+		  ? null
+		  : AppBar(
 		backgroundColor: surfaceBar,
 		foregroundColor: scheme.onSurface,
 		elevation: 0,

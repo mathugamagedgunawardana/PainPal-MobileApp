@@ -10,7 +10,10 @@ import '../widgets/custom_widgets.dart';
 import '../widgets/head_pain_site_picker.dart';
 
 class MigraineFormScreen extends StatefulWidget {
-  const MigraineFormScreen({super.key});
+  const MigraineFormScreen({super.key, this.embedInShell = false});
+
+  /// When true, used inside [HomeScreen] shell without a duplicate app bar.
+  final bool embedInShell;
 
   @override
   State<MigraineFormScreen> createState() => _MigraineFormScreenState();
@@ -245,18 +248,11 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
   @override
   Widget build(BuildContext context) {
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Log migraine attack'),
-        elevation: 0,
-        backgroundColor: const Color(0xFF171B22),
-      ),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
+    final form = Form(
+      key: _formKey,
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
               SectionHeader(
                 title: 'When did the attack happen?',
                 subtitle: 'Help us understand your migraine pattern',
@@ -536,8 +532,18 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
               const SizedBox(height: 20),
             ],
           ),
-        ),
-      ),
+        );
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF0F1218),
+      appBar: widget.embedInShell
+          ? null
+          : AppBar(
+              title: const Text('Log migraine attack'),
+              elevation: 0,
+              backgroundColor: const Color(0xFF171B22),
+            ),
+      body: widget.embedInShell ? form : SafeArea(child: form),
     );
   }
 

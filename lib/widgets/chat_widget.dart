@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../data/auth_models.dart';
 import '../data/doctor_patient_chat_api.dart';
 import '../data/gemini_ai_service.dart';
+import '../data/patient_ai_context_builder.dart';
 import '../data/storage.dart';
 import '../data/voice_agent_service.dart';
 import '../services/app_services.dart';
@@ -664,7 +665,8 @@ class _AiChatPanel extends StatefulWidget {
 }
 
 class _AiChatPanelState extends State<_AiChatPanel> {
-  late final GeminiAiService _aiService;
+  GeminiAiService? _aiService;
+  bool _aiBootstrapping = true;
   late final VoiceAgentService _voiceService;
   final List<AiChatMessage> _messages = [];
   final TextEditingController _messageController = TextEditingController();
@@ -676,10 +678,45 @@ class _AiChatPanelState extends State<_AiChatPanel> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    _aiService = GeminiAiService();
     _voiceService = VoiceAgentService();
     _setupVoiceAgent();
-    _addInitialMessage();
+    _bootstrapAi();
+  }
+
+  Future<void> _bootstrapAi() async {
+    String? ctx;
+    try {
+      ctx = await PatientAiContextBuilder.build();
+    } catch (_) {
+      ctx = null;
+    }
+    if (!mounted) {
+      return;
+    }
+    try {
+      setState(() {
+        _aiService = GeminiAiService(patientContext: ctx);
+        _aiBootstrapping = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _aiBootstrapping = false;
+        _messages.add(
+          AiChatMessage(
+            id: DateTime.now().toString(),
+            text:
+                'AI could not start (check Gemini API key in .env). You can still use clinic chat from the Messages tab.',
+            isUser: false,
+            timestamp: DateTime.now(),
+          ),
+        );
+      });
+      return;
+    }
+    _addInitialMessage(hasPatientContext: ctx != null && ctx.trim().isNotEmpty);
   }
 
   void _setupVoiceAgent() {
@@ -721,13 +758,14 @@ class _AiChatPanelState extends State<_AiChatPanel> {
     };
   }
 
-  void _addInitialMessage() {
+  void _addInitialMessage({bool hasPatientContext = false}) {
     setState(() {
       _messages.add(
         AiChatMessage(
           id: DateTime.now().toString(),
-          text:
-              'Hello! I\'m Painpal AI, your migraine and pain management assistant. You can type your message or use the microphone icon to speak. How can I help you today?',
+          text: hasPatientContext
+              ? 'Hello! I\'m Painpal AI. I\'ve loaded your recent migraine logs and clinic summary so I can answer questions in context. This is not medical advice—ask your doctor for clinical decisions. How can I help?'
+              : 'Hello! I\'m Painpal AI, your migraine and pain management assistant. You can type your message or use the microphone icon to speak. How can I help you today?',
           isUser: false,
           timestamp: DateTime.now(),
         ),
@@ -737,10 +775,11 @@ class _AiChatPanelState extends State<_AiChatPanel> {
 
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty) {
+    if (text.isEmpty || _aiBootstrapping || _aiService == null) {
       return;
     }
 
+    final svc = _aiService!;
     setState(() {
       _messages.add(
         AiChatMessage(
@@ -757,7 +796,7 @@ class _AiChatPanelState extends State<_AiChatPanel> {
     _scrollToBottom();
 
     try {
-      final response = await _aiService.sendMessage(text);
+      final response = await svc.sendMessage(text);
 
       setState(() {
         _messages.add(
@@ -824,13 +863,29 @@ class _AiChatPanelState extends State<_AiChatPanel> {
   void dispose() {
     _messageController.dispose();
     _scrollController.dispose();
-    _aiService.dispose();
+    _aiService?.dispose();
     _voiceService.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_aiBootstrapping) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(
+              'Loading your records for AI…',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Column(
       children: [
         Expanded(
@@ -890,7 +945,8 @@ class _AiChatPanelState extends State<_AiChatPanel> {
                   controller: _messageController,
                   maxLines: null,
                   minLines: 1,
-                  enabled: !_isLoading && !_isListening,
+                  enabled:
+                      !_isLoading && !_isListening && _aiService != null,
                   decoration: InputDecoration(
                     hintText:
                         _isListening ? 'Listening...' : 'Ask me anything...',
@@ -922,7 +978,8 @@ class _AiChatPanelState extends State<_AiChatPanel> {
                 backgroundColor: _isListening
                     ? const Color(0xFFFF6B6B)
                     : const Color(0xFFB6F36B),
-                onPressed: _toggleListening,
+                onPressed:
+                    _aiService == null ? null : _toggleListening,
                 tooltip: _isListening ? 'Stop listening' : 'Start listening',
                 child: Icon(
                   _isListening ? Icons.mic : Icons.mic_none,
@@ -934,7 +991,9 @@ class _AiChatPanelState extends State<_AiChatPanel> {
               FloatingActionButton(
                 mini: true,
                 backgroundColor: const Color(0xFFB6F36B),
-                onPressed: _isLoading || _isListening ? null : _sendMessage,
+                onPressed: _isLoading || _isListening || _aiService == null
+                    ? null
+                    : _sendMessage,
                 tooltip: 'Send message',
                 child: Icon(
                   Icons.send,

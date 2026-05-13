@@ -11,7 +11,10 @@ const _kBg = Color(0xFF0F1218);
 
 /// Home tab: connects to the Next.js API (MongoDB via Prisma) for patient analytics.
 class LogAttackScreen extends StatefulWidget {
-  const LogAttackScreen({super.key});
+  const LogAttackScreen({super.key, this.embedInShell = false});
+
+  /// When true, [HomeScreen] provides the shell header; hide local [AppBar].
+  final bool embedInShell;
 
   @override
   State<LogAttackScreen> createState() => _LogAttackScreenState();
@@ -94,12 +97,14 @@ class _LogAttackScreenState extends State<LogAttackScreen> {
 
     return Scaffold(
       backgroundColor: _kBg,
-      appBar: AppBar(
-        title: const Text('Painpal'),
-        backgroundColor: _kSurface,
-        foregroundColor: scheme.onSurface,
-        elevation: 0,
-      ),
+      appBar: widget.embedInShell
+          ? null
+          : AppBar(
+              title: const Text('Painpal'),
+              backgroundColor: _kSurface,
+              foregroundColor: scheme.onSurface,
+              elevation: 0,
+            ),
       body: RefreshIndicator(
         color: _kAccent,
         backgroundColor: _kSurface,

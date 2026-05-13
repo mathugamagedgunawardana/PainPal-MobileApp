@@ -1,17 +1,44 @@
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'livekit_config.dart';
 
-/// Service for handling Gemini AI responses
+/// Service for handling Gemini AI responses with optional patient-specific context.
 class GeminiAiService {
   late GenerativeModel _model;
   late ChatSession _chatSession;
   bool _isInitialized = false;
 
-  GeminiAiService() {
-    _initializeModel();
+  GeminiAiService({String? patientContext}) {
+    _initializeModel(patientContext: patientContext);
   }
 
-  void _initializeModel() {
+  static String _systemPrompt({String? patientContext}) {
+    final buf = StringBuffer();
+    buf.writeln(
+      'You are Painpal AI, a supportive assistant focused on migraine education, '
+      'self-management, triggers, lifestyle factors, and general pain-coping strategies. '
+      'Be empathetic, concise, and never replace a clinician. '
+      'If asked for a diagnosis or treatment plan, encourage consulting a qualified healthcare professional.',
+    );
+
+    if (patientContext != null && patientContext.trim().isNotEmpty) {
+      buf.writeln();
+      buf.writeln(
+        'The following block was loaded from this patient\'s app database and clinic APIs '
+        '(recent attacks, MRI summaries on device, and optional analytics). '
+        'When the user asks about their own data, rely on this block and the conversation. '
+        'Do not invent clinical facts that are not supported by the block or the chat. '
+        'If something is missing, say you do not see it in their records.',
+      );
+      buf.writeln();
+      buf.writeln('--- Patient record summary ---');
+      buf.writeln(patientContext.trim());
+      buf.writeln('--- End summary ---');
+    }
+
+    return buf.toString();
+  }
+
+  void _initializeModel({String? patientContext}) {
     if (AiConfig.geminiApiKey.isEmpty) {
       throw Exception('Gemini API Key is not configured');
     }
@@ -24,29 +51,22 @@ class GeminiAiService {
         topP: 0.95,
         maxOutputTokens: 1024,
       ),
+      systemInstruction: Content.system(_systemPrompt(patientContext: patientContext)),
     );
 
     _chatSession = _model.startChat();
     _isInitialized = true;
   }
 
-  /// Send a message to Gemini AI and get a response
+  /// Send a user message (system + patient context are already configured on the model).
   Future<String> sendMessage(String userMessage) async {
     if (!_isInitialized) {
-      _initializeModel();
+      _initializeModel(patientContext: null);
     }
 
     try {
-      // Add system context to the message
-      final systemContext =
-          '''You are Painpal AI, a helpful healthcare assistant specializing in migraine support and pain management. 
-You provide compassionate, evidence-based information about migraine symptoms, triggers, prevention, pain management techniques, and emotional support.
-Always be empathetic, concise, and encourage professional consultation. If asked about something outside your domain, politely redirect to migraine and pain management.
-
-User: $userMessage''';
-
       final response = await _chatSession.sendMessage(
-        Content.text(systemContext),
+        Content.text(userMessage),
       );
 
       final responseText = response.text;
@@ -60,19 +80,13 @@ User: $userMessage''';
     }
   }
 
-  /// Get chat history
   List<Content> getChatHistory() {
     return _chatSession.history.toList();
   }
 
-  /// Clear chat history
   void clearChatHistory() {
     _chatSession = _model.startChat();
   }
 
-  /// Dispose resources
-  void dispose() {
-    // Cleanup if needed
-  }
+  void dispose() {}
 }
-
