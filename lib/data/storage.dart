@@ -1,10 +1,30 @@
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
+/// Name + phone for Quick Access emergency calls (stored locally).
+class EmergencyContactEntry {
+  EmergencyContactEntry({required this.name, required this.phone});
+
+  final String name;
+  final String phone;
+
+  Map<String, dynamic> toJson() => {'name': name, 'phone': phone};
+
+  static EmergencyContactEntry fromJson(Map<String, dynamic> json) {
+    return EmergencyContactEntry(
+      name: (json['name'] as String?)?.trim() ?? '',
+      phone: (json['phone'] as String?)?.trim() ?? '',
+    );
+  }
+}
 
 class SettingsStorage {
   static const _baseUrlKey = 'base_url';
   static const _patientIdKey = 'patient_id';
   static const _draftAttackKey = 'draft_attack';
   static const _chatDoctorProfileIdKey = 'chat_doctor_profile_id';
+  static const _emergencyContactsKey = 'emergency_contacts_v1';
 
   /// Local medication reminder notifications (see [MedicationReminderService]).
   static const medicationRemindersEnabledKey = 'pref_medication_reminders_enabled';
@@ -81,6 +101,29 @@ class SettingsStorage {
   Future<String?> readChatDoctorProfileId() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_chatDoctorProfileIdKey);
+  }
+
+  Future<List<EmergencyContactEntry>> readEmergencyContacts() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_emergencyContactsKey);
+    if (raw == null || raw.trim().isEmpty) {
+      return [];
+    }
+    try {
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list
+          .map((e) => EmergencyContactEntry.fromJson(e as Map<String, dynamic>))
+          .where((e) => e.phone.isNotEmpty)
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> saveEmergencyContacts(List<EmergencyContactEntry> items) async {
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = jsonEncode(items.map((e) => e.toJson()).toList());
+    await prefs.setString(_emergencyContactsKey, encoded);
   }
 }
 

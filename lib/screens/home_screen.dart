@@ -4,6 +4,7 @@ import '../data/auth_models.dart';
 import '../services/app_services.dart';
 import '../services/attack_timer_service.dart';
 import '../services/medication_reminder_service.dart';
+import '../services/quick_access_actions.dart';
 import '../theme/shell_tokens.dart';
 import '../widgets/app_paynx_bottom_nav.dart';
 import '../widgets/app_shell_header.dart';
@@ -30,6 +31,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _index = 0;
+  bool _quickAccessExpanded = false;
 
   late final List<Widget> _tabs = [
     const LogAttackScreen(embedInShell: true),
@@ -186,6 +188,33 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _collapseQuickAccess() {
+    if (_quickAccessExpanded) {
+      setState(() => _quickAccessExpanded = false);
+    }
+  }
+
+  Widget _quickAccessMiniFab({
+    required Object heroTag,
+    required IconData icon,
+    required String tooltip,
+    required Color backgroundColor,
+    required VoidCallback onPressed,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: FloatingActionButton.small(
+        heroTag: heroTag,
+        onPressed: onPressed,
+        backgroundColor: backgroundColor,
+        foregroundColor: Colors.white,
+        elevation: 8,
+        tooltip: tooltip,
+        child: Icon(icon, size: 20),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
@@ -253,6 +282,69 @@ class _HomeScreenState extends State<HomeScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
+                    if (_quickAccessExpanded) ...[
+                      _quickAccessMiniFab(
+                        heroTag: 'qa_emergency',
+                        icon: Icons.contact_phone_outlined,
+                        tooltip: 'Emergency contacts',
+                        backgroundColor: Colors.red.shade800,
+                        onPressed: () async {
+                          _collapseQuickAccess();
+                          await QuickAccessActions.openEmergencyContacts(context);
+                        },
+                      ),
+                      _quickAccessMiniFab(
+                        heroTag: 'qa_doctor',
+                        icon: Icons.local_hospital_outlined,
+                        tooltip: 'Call doctor',
+                        backgroundColor: Colors.blue.shade800,
+                        onPressed: () async {
+                          _collapseQuickAccess();
+                          await QuickAccessActions.openCallDoctor(context);
+                        },
+                      ),
+                      _quickAccessMiniFab(
+                        heroTag: 'qa_share_loc',
+                        icon: Icons.share_location,
+                        tooltip: 'Share location',
+                        backgroundColor: Colors.teal.shade700,
+                        onPressed: () async {
+                          _collapseQuickAccess();
+                          await QuickAccessActions.shareLocation(context);
+                        },
+                      ),
+                      _quickAccessMiniFab(
+                        heroTag: 'qa_severe',
+                        icon: Icons.warning_amber_rounded,
+                        tooltip: 'Severe symptom checklist',
+                        backgroundColor: Colors.deepOrange.shade800,
+                        onPressed: () {
+                          _collapseQuickAccess();
+                          QuickAccessActions.openSevereChecklist(context);
+                        },
+                      ),
+                    ],
+                    FloatingActionButton(
+                      heroTag: 'fab_quick_access',
+                      onPressed: () {
+                        setState(() {
+                          _quickAccessExpanded = !_quickAccessExpanded;
+                        });
+                      },
+                      backgroundColor: _quickAccessExpanded
+                          ? Colors.grey.shade800
+                          : const Color(0xFFE64A45),
+                      foregroundColor: Colors.white,
+                      elevation: 10,
+                      tooltip: _quickAccessExpanded
+                          ? 'Close quick access'
+                          : 'Quick access',
+                      child: Icon(
+                        _quickAccessExpanded ? Icons.close : Icons.bolt,
+                        size: 26,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     if (isPatient) ...[
                       FloatingActionButton(
                         heroTag: 'fab_attack_timer',
