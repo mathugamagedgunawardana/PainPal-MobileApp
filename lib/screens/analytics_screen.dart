@@ -5,6 +5,7 @@ import '../data/database.dart';
 import '../data/patient_analytics_api.dart';
 import '../services/app_services.dart';
 import '../widgets/analytics_widgets.dart';
+import '../widgets/next_attack_forecast_card.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -549,69 +550,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 						  const SizedBox(height: 14),
 						],
 						if (data.nextAttack != null) ...[
-						  Container(
-							width: double.infinity,
-							padding: const EdgeInsets.all(12),
-							decoration: BoxDecoration(
-							  color: Colors.amber.withValues(alpha: 0.12),
-							  borderRadius: BorderRadius.circular(12),
-							  border: Border.all(
-								color: Colors.amber.shade700.withValues(alpha: 0.4),
-							  ),
-							),
-							child: Column(
-							  crossAxisAlignment: CrossAxisAlignment.start,
-							  children: [
-								Row(
-								  children: [
-									Icon(Icons.upcoming_outlined, color: Colors.amber.shade300, size: 20),
-									const SizedBox(width: 8),
-									Text(
-									  'Next attack (forecast)',
-									  style: theme.textTheme.titleSmall?.copyWith(
-										fontWeight: FontWeight.w800,
-										color: Colors.amber.shade100,
-									  ),
-									),
-								  ],
-								),
-								const SizedBox(height: 6),
-								Text(
-								  data.nextAttack!.predictedTypeDisplay,
-								  style: theme.textTheme.titleMedium?.copyWith(
-									fontWeight: FontWeight.w800,
-									color: scheme.onSurface,
-								  ),
-								),
-								if (data.nextAttack!.duration != null ||
-									data.nextAttack!.frequency != null ||
-									data.nextAttack!.intensity != null) ...[
-								  const SizedBox(height: 6),
-								  Text(
-									[
-									  if (data.nextAttack!.duration != null)
-										'Est. ${data.nextAttack!.duration!.toStringAsFixed(1)} h',
-									  if (data.nextAttack!.frequency != null)
-										'Freq ${data.nextAttack!.frequency!.toStringAsFixed(1)}',
-									  if (data.nextAttack!.intensity != null)
-										'Intensity ${data.nextAttack!.intensity!.toStringAsFixed(1)}',
-									].join(' · '),
-									style: theme.textTheme.bodySmall?.copyWith(color: accent),
-								  ),
-								],
-								if (data.nextAttackDisclaimer != null &&
-									data.nextAttackDisclaimer!.isNotEmpty) ...[
-								  const SizedBox(height: 8),
-								  Text(
-									data.nextAttackDisclaimer!,
-									style: theme.textTheme.bodySmall?.copyWith(
-									  color: scheme.onSurfaceVariant,
-									  fontSize: 11,
-									),
-								  ),
-								],
-							  ],
-							),
+						  NextAttackForecastCard(
+							data: data.nextAttack!,
+							disclaimer: data.nextAttackDisclaimer,
 						  ),
 						  const SizedBox(height: 14),
 						],

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/auth_models.dart';
 import '../data/patient_analytics_api.dart';
 import '../services/app_services.dart';
+import '../widgets/next_attack_forecast_card.dart';
 import 'migraine_form_screen.dart';
 
 const _kSurface = Color(0xFF171B22);
@@ -255,11 +256,9 @@ class _AnalyticsBody extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         if (summary.nextAttack != null) ...[
-          _NextAttackCard(
+          NextAttackForecastCard(
             data: summary.nextAttack!,
             disclaimer: summary.nextAttackDisclaimer,
-            theme: theme,
-            scheme: scheme,
           ),
           const SizedBox(height: 12),
         ] else if (summary.nextAttackUnavailableReason != null &&
@@ -391,135 +390,6 @@ class _NextAttackUnavailableCard extends StatelessWidget {
               color: scheme.onSurfaceVariant,
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NextAttackCard extends StatelessWidget {
-  const _NextAttackCard({
-    required this.data,
-    required this.theme,
-    required this.scheme,
-    this.disclaimer,
-  });
-
-  final PatientNextAttackData data;
-  final ThemeData theme;
-  final ColorScheme scheme;
-  final String? disclaimer;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2A2419),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.amber.shade700.withValues(alpha: 0.45)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.upcoming_outlined, color: Colors.amber.shade300, size: 22),
-              const SizedBox(width: 8),
-              Text(
-                'Next attack (forecast)',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: Colors.amber.shade100,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'From your last ${data.basedOnRecords} logged episode${data.basedOnRecords == 1 ? '' : 's'}. '
-            'For planning only—not medical advice.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            data.predictedTypeDisplay,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: scheme.onSurface,
-            ),
-          ),
-          if (data.duration != null ||
-              data.frequency != null ||
-              data.intensity != null) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 12,
-              runSpacing: 6,
-              children: [
-                if (data.duration != null)
-                  Text(
-                    'Est. duration ${data.duration!.toStringAsFixed(1)} h',
-                    style: theme.textTheme.bodySmall?.copyWith(color: _kAccent),
-                  ),
-                if (data.frequency != null)
-                  Text(
-                    'Frequency ${data.frequency!.toStringAsFixed(1)}',
-                    style: theme.textTheme.bodySmall?.copyWith(color: _kAccent),
-                  ),
-                if (data.intensity != null)
-                  Text(
-                    'Intensity ${data.intensity!.toStringAsFixed(1)}',
-                    style: theme.textTheme.bodySmall?.copyWith(color: _kAccent),
-                  ),
-              ],
-            ),
-          ],
-          if (data.symptomsLikely.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(
-              'Likely symptoms',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: Colors.amber.shade200,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: data.symptomsLikely.take(10).map((s) {
-                final pct = s.probability != null
-                    ? ' (${(s.probability! * 100).round()}%)'
-                    : '';
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _kSurface,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: _kAccent.withValues(alpha: 0.2)),
-                  ),
-                  child: Text(
-                    '${s.name}$pct',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
-          if (disclaimer != null && disclaimer!.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(
-              disclaimer!,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                fontSize: 11,
-              ),
-            ),
-          ],
         ],
       ),
     );

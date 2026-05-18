@@ -4,6 +4,28 @@ import 'package:http/http.dart' as http;
 
 import 'backend_config.dart';
 
+class NextAttackTypeOption {
+  const NextAttackTypeOption({required this.label, required this.probability});
+
+  final String label;
+  final double probability;
+
+  static NextAttackTypeOption? fromJson(Object? raw) {
+    if (raw is! Map<String, dynamic>) return null;
+    final label = raw['label'] as String?;
+    final prob = (raw['probability'] as num?)?.toDouble();
+    if (label == null || label.isEmpty || prob == null) return null;
+    return NextAttackTypeOption(label: label, probability: prob);
+  }
+
+  String get labelDisplay {
+    return label
+        .split('_')
+        .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}')
+        .join(' ');
+  }
+}
+
 /// Forecast for the next migraine attack from `GET /api/patient/analytics`.
 class PatientNextAttackData {
   const PatientNextAttackData({
@@ -13,6 +35,13 @@ class PatientNextAttackData {
     this.frequency,
     this.intensity,
     this.symptomsLikely = const [],
+    this.topTypes = const [],
+    this.confidenceTier,
+    this.typeConfidencePercent,
+    this.usedHistoryFallback = false,
+    this.modelPredictedType,
+    this.displayDisclaimer,
+    this.confidenceCaption,
   });
 
   final int basedOnRecords;
@@ -21,12 +50,20 @@ class PatientNextAttackData {
   final double? frequency;
   final double? intensity;
   final List<NextAttackSymptom> symptomsLikely;
+  final List<NextAttackTypeOption> topTypes;
+  final String? confidenceTier;
+  final int? typeConfidencePercent;
+  final bool usedHistoryFallback;
+  final String? modelPredictedType;
+  final String? displayDisclaimer;
+  final String? confidenceCaption;
 
   static PatientNextAttackData? fromJson(Object? raw) {
     if (raw is! Map<String, dynamic>) return null;
     final type = raw['predictedType'] as String?;
     if (type == null || type.isEmpty) return null;
     final symRaw = raw['symptomsLikely'] as List? ?? [];
+    final topRaw = raw['topTypes'] as List? ?? [];
     return PatientNextAttackData(
       basedOnRecords: (raw['basedOnRecords'] as num?)?.toInt() ?? 0,
       predictedType: type,
@@ -36,6 +73,16 @@ class PatientNextAttackData {
       symptomsLikely: symRaw
           .map((e) => NextAttackSymptom.fromJson(e as Map<String, dynamic>))
           .toList(),
+      topTypes: topRaw
+          .map(NextAttackTypeOption.fromJson)
+          .whereType<NextAttackTypeOption>()
+          .toList(),
+      confidenceTier: raw['confidenceTier'] as String?,
+      typeConfidencePercent: (raw['typeConfidencePercent'] as num?)?.toInt(),
+      usedHistoryFallback: raw['usedHistoryFallback'] as bool? ?? false,
+      modelPredictedType: raw['modelPredictedType'] as String?,
+      displayDisclaimer: raw['displayDisclaimer'] as String?,
+      confidenceCaption: raw['confidenceCaption'] as String?,
     );
   }
 
