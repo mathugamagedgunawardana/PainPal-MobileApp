@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -11,7 +9,10 @@ import '../services/app_services.dart';
 import '../widgets/custom_widgets.dart';
 
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key});
+  const HistoryScreen({super.key, this.embedInShell = false});
+
+  /// When true, [HomeScreen] provides the shell header; hide local [AppBar].
+  final bool embedInShell;
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -23,9 +24,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
   final _database = PainpalDatabase.instance;
 
   late Future<List<MigraineAttack>> _migraineFuture;
-  late Future<List<MriScan>> _mriFuture;
 
-  _MigraineViewMode _migraineViewMode = _MigraineViewMode.list;
+  _MigraineViewMode _migraineViewMode = _MigraineViewMode.calendar;
   DateTime _calendarMonth = DateTime(DateTime.now().year, DateTime.now().month);
 
   @override
@@ -36,7 +36,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   void _reload() {
     _migraineFuture = _loadMigrainesMerged();
-    _mriFuture = _loadMriMerged();
   }
 
   Future<List<MigraineAttack>> _loadMigrainesMerged() async {
@@ -69,60 +68,50 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  Future<List<MriScan>> _loadMriMerged() async {
-    final local = await _database.fetchMriScans();
-    final auth = AppServices.auth;
-    if (!auth.isAuthenticated || auth.currentUser?.role != UserRole.patient) {
-      return local;
-    }
-    try {
-      final base = await auth.resolveApiBaseUrl();
-      final token = auth.authToken;
-      if (token == null || token.isEmpty) {
-        return local;
-      }
-      final remote = await fetchPatientMriScans(
-        baseUrl: base,
-        bearerToken: token,
-      );
-      if (remote.isEmpty) {
-        return local;
-      }
-      final remoteIds = remote.map((e) => e.mriId).whereType<String>().toSet();
-      final localOnly = local.where((l) {
-        final id = l.mriId;
-        if (id == null) {
-          return true;
-        }
-        return !remoteIds.contains(id);
-      });
-      return [...remote, ...localOnly];
-    } catch (_) {
-      return local;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('History'),
-        elevation: 0,
-        backgroundColor: const Color(0xFF171B22),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              setState(() {
-                _reload();
-              });
-            },
-          ),
-        ],
-      ),
-      body: ListView(
+      backgroundColor: const Color(0xFF0F1218),
+      appBar: widget.embedInShell
+          ? null
+          : AppBar(
+              title: const Text('History'),
+              elevation: 0,
+              backgroundColor: const Color(0xFF171B22),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.refresh),
+                  onPressed: () {
+                    setState(() {
+                      _reload();
+                    });
+                  },
+                ),
+              ],
+            ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (widget.embedInShell)
+            Material(
+              color: const Color(0xFF171B22),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Refresh',
+                  onPressed: () {
+                    setState(() {
+                      _reload();
+                    });
+                  },
+                ),
+              ),
+            ),
+          Expanded(
+            child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           // MIGRAINE HISTORY SECTION
@@ -141,14 +130,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
             segments: const [
               ButtonSegment(
-                value: _MigraineViewMode.list,
-                label: Text('List'),
-                icon: Icon(Icons.view_list, size: 18),
-              ),
-              ButtonSegment(
                 value: _MigraineViewMode.calendar,
                 label: Text('Calendar'),
                 icon: Icon(Icons.calendar_month, size: 18),
+              ),
+              ButtonSegment(
+                value: _MigraineViewMode.list,
+                label: Text('List'),
+                icon: Icon(Icons.view_list, size: 18),
               ),
             ],
             selected: {_migraineViewMode},
@@ -213,60 +202,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
               );
             },
           ),
-          const SizedBox(height: 32),
-
-          // MRI SCAN HISTORY SECTION
-          SectionHeader(
-            title: 'MRI Scan History',
-            subtitle: 'Your uploaded brain scans',
-            illustrationIcon: Icons.image_search,
-          ),
-          const SizedBox(height: 12),
-          FutureBuilder<List<MriScan>>(
-            future: _mriFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return Center(
-                  child: Column(
-                    children: [
-                      Icon(Icons.image, size: 64, color: Colors.grey.shade600),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No MRI scans yet',
-                        style: theme.textTheme.bodyLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Upload your brain MRI scans to get analysis',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.grey.shade400,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-              final items = snapshot.data!;
-              return Column(
-                children: items
-                    .asMap()
-                    .entries
-                    .map((entry) {
-                      final index = entry.key;
-                      final item = entry.value;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _MriCard(item: item, index: index),
-                      );
-                    })
-                    .toList(),
-              );
-            },
-          ),
           const SizedBox(height: 20),
+        ],
+            ),
+          ),
         ],
       ),
     );
@@ -718,150 +657,6 @@ class _MigraineCard extends StatelessWidget {
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _MriCard extends StatelessWidget {
-  final MriScan item;
-  final int index;
-
-  const _MriCard({
-    Key? key,
-    required this.item,
-    required this.index,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final timestamp = item.timestamp.toLocal().toString().split('.').first;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF171B22),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade700, width: 2),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // IMAGE THUMBNAIL
-          if (item.imagePath.isNotEmpty && File(item.imagePath).existsSync())
-            Container(
-              width: double.infinity,
-              height: 180,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade900,
-              ),
-              child: Image.file(
-                File(item.imagePath),
-                fit: BoxFit.cover,
-              ),
-            )
-          else
-            Container(
-              width: double.infinity,
-              height: 180,
-              color: Colors.grey.shade900,
-              child: Center(
-                child: Icon(
-                  Icons.image,
-                  size: 64,
-                  color: Colors.grey.shade700,
-                ),
-              ),
-            ),
-          // DETAILS
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFB6F36B).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.image_search,
-                        color: Color(0xFFB6F36B),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Scan #${index + 1}',
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            timestamp,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.grey.shade400,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: item.prediction == 'Tumor'
-                          ? Colors.red.withValues(alpha: 0.1)
-                          : Colors.green.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        item.prediction == 'Tumor'
-                            ? Icons.warning
-                            : Icons.check_circle,
-                        color: item.prediction == 'Tumor'
-                            ? Colors.red.shade400
-                            : Colors.green.shade400,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Prediction: ${item.prediction}',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              'Confidence: ${(item.confidence ?? 0).toStringAsFixed(1)}%',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: Colors.grey.shade400,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );

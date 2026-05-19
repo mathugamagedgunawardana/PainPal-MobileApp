@@ -35,11 +35,20 @@ class BackendConfig {
   /// Stored AI narrative summary; requires PATIENT JWT.
   static const String patientAiSummaryEndpoint = '/api/patient/ai-summary';
 
+  /// Full patient-scoped DB export for Gemini (JSON text); requires PATIENT JWT.
+  static const String patientAiContextEndpoint = '/api/patient/ai-context';
+
   /// Patient-scoped migraine list for History; requires PATIENT JWT.
   static const String patientMigraineEventsEndpoint = '/api/patient/migraine-events';
 
-  /// Patient-scoped MRI list (optional persistence); requires PATIENT JWT.
+  /// Patient-scoped MRI upload history; requires PATIENT JWT.
   static const String patientMriScansEndpoint = '/api/patient/mri-scans';
+
+  /// Patient: list ACTIVE linked doctors (for scheduling).
+  static const String patientLinkedDoctorsEndpoint = '/api/patient/linked-doctors';
+
+  /// Patient: list / create appointments.
+  static const String patientAppointmentsEndpoint = '/api/patient/appointments';
 
   /// Doctor–patient messaging (requires PATIENT or DOCTOR JWT).
   static const String chatConversationsEndpoint = '/api/chat/conversations';
@@ -47,6 +56,3 @@ class BackendConfig {
   static String chatMessagesEndpoint(String conversationId) =>
       '/api/chat/conversations/$conversationId/messages';
 }
-
-
-

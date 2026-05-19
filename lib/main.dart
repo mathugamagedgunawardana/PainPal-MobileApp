@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'screens/session_shell.dart';
 import 'services/app_services.dart';
+import 'theme/shell_tokens.dart';
 
 Future<void> main() async {
   // Ensure Flutter is initialized
@@ -21,8 +22,11 @@ class PainpalApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFFB6F36B),
+      seedColor: ShellTokens.lime,
       brightness: Brightness.dark,
+    ).copyWith(
+      primary: ShellTokens.lime,
+      surface: ShellTokens.surface,
     );
 
     return MaterialApp(
@@ -31,12 +35,26 @@ class PainpalApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: scheme,
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFF0F1218),
+        scaffoldBackgroundColor: ShellTokens.bg,
+        cardTheme: CardThemeData(
+          color: ShellTokens.surface,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(ShellTokens.cardRadius),
+          ),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color(0xFF171B22),
+          fillColor: ShellTokens.surface,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
       ),

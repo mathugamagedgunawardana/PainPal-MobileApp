@@ -6,13 +6,19 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
 import '../data/api_client.dart';
+import '../data/auth_models.dart';
 import '../data/database.dart';
 import '../data/models.dart';
+import '../data/patient_remote_api.dart';
 import '../data/storage.dart';
+import '../services/app_services.dart';
 import '../widgets/custom_widgets.dart';
 
 class MriUploadScreen extends StatefulWidget {
-  const MriUploadScreen({super.key});
+  const MriUploadScreen({super.key, this.embedInShell = false});
+
+  /// When true, [HomeScreen] provides the shell header; hide local [AppBar].
+  final bool embedInShell;
 
   @override
   State<MriUploadScreen> createState() => _MriUploadScreenState();
@@ -26,6 +32,53 @@ class _MriUploadScreenState extends State<MriUploadScreen> {
   File? _selectedImage;
   bool _submitting = false;
   MriApiResponse? _response;
+
+  late Future<List<MriScan>> _mriHistoryFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _mriHistoryFuture = _loadMriMerged();
+  }
+
+  void _reloadMriHistory() {
+    setState(() {
+      _mriHistoryFuture = _loadMriMerged();
+    });
+  }
+
+  Future<List<MriScan>> _loadMriMerged() async {
+    final local = await _database.fetchMriScans();
+    final auth = AppServices.auth;
+    if (!auth.isAuthenticated || auth.currentUser?.role != UserRole.patient) {
+      return local;
+    }
+    try {
+      final base = await auth.resolveApiBaseUrl();
+      final token = auth.authToken;
+      if (token == null || token.isEmpty) {
+        return local;
+      }
+      final remote = await fetchPatientMriScans(
+        baseUrl: base,
+        bearerToken: token,
+      );
+      if (remote.isEmpty) {
+        return local;
+      }
+      final remoteIds = remote.map((e) => e.mriId).whereType<String>().toSet();
+      final localOnly = local.where((l) {
+        final id = l.mriId;
+        if (id == null) {
+          return true;
+        }
+        return !remoteIds.contains(id);
+      });
+      return [...remote, ...localOnly];
+    } catch (_) {
+      return local;
+    }
+  }
 
   Future<void> _pickImage(ImageSource source) async {
     final image = await _picker.pickImage(source: source, imageQuality: 92);
@@ -85,6 +138,7 @@ class _MriUploadScreenState extends State<MriUploadScreen> {
       setState(() {
         _response = result;
       });
+      _reloadMriHistory();
     } catch (error) {
       if (!mounted) {
         return;
@@ -108,16 +162,45 @@ class _MriUploadScreenState extends State<MriUploadScreen> {
     final isImageSelected = _selectedImage != null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Upload MRI Scan'),
-        elevation: 0,
-        backgroundColor: const Color(0xFF171B22),
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            // HEADER
+      backgroundColor: const Color(0xFF0F1218),
+      appBar: widget.embedInShell
+          ? null
+          : AppBar(
+              title: const Text('Upload MRI Scan'),
+              elevation: 0,
+              backgroundColor: const Color(0xFF171B22),
+            ),
+      body: widget.embedInShell
+          ? RefreshIndicator(
+              onRefresh: _onRefreshMriHistory,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(20),
+                children: _mriBodyChildren(theme, isImageSelected),
+              ),
+            )
+          : SafeArea(
+              child: RefreshIndicator(
+                onRefresh: _onRefreshMriHistory,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(20),
+                  children: _mriBodyChildren(theme, isImageSelected),
+                ),
+              ),
+            ),
+    );
+  }
+
+  Future<void> _onRefreshMriHistory() async {
+    setState(() {
+      _mriHistoryFuture = _loadMriMerged();
+    });
+    await _mriHistoryFuture;
+  }
+
+  List<Widget> _mriBodyChildren(ThemeData theme, bool isImageSelected) {
+    return [
             SectionHeader(
               title: 'Upload Brain MRI Scan',
               subtitle: 'Help us analyze your brain imaging',
@@ -312,9 +395,205 @@ class _MriUploadScreenState extends State<MriUploadScreen> {
                 icon: Icons.equalizer,
               ),
             ],
+            const SizedBox(height: 32),
+            SectionHeader(
+              title: 'MRI scan history',
+              subtitle: 'Your uploaded brain scans',
+              illustrationIcon: Icons.history,
+            ),
+            const SizedBox(height: 12),
+            FutureBuilder<List<MriScan>>(
+              future: _mriHistoryFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.image,
+                              size: 56, color: Colors.grey.shade600),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No MRI scans yet',
+                            style: theme.textTheme.bodyLarge,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Analyze a scan above to see it listed here',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.grey.shade400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+                final items = snapshot.data!;
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: items
+                      .asMap()
+                      .entries
+                      .map((entry) {
+                        final index = entry.key;
+                        final item = entry.value;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _MriHistoryCard(item: item, index: index),
+                        );
+                      })
+                      .toList(),
+                );
+              },
+            ),
             const SizedBox(height: 20),
-          ],
-        ),
+          ];
+  }
+}
+
+class _MriHistoryCard extends StatelessWidget {
+  const _MriHistoryCard({
+    required this.item,
+    required this.index,
+  });
+
+  final MriScan item;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final timestamp = item.timestamp.toLocal().toString().split('.').first;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF171B22),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade700, width: 2),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (item.imagePath.isNotEmpty && File(item.imagePath).existsSync())
+            SizedBox(
+              width: double.infinity,
+              height: 180,
+              child: Image.file(
+                File(item.imagePath),
+                fit: BoxFit.cover,
+              ),
+            )
+          else
+            Container(
+              width: double.infinity,
+              height: 180,
+              color: Colors.grey.shade900,
+              child: Center(
+                child: Icon(
+                  Icons.image,
+                  size: 64,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFB6F36B).withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.image_search,
+                        color: Color(0xFFB6F36B),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Scan #${index + 1}',
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            timestamp,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.grey.shade400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: item.prediction == 'Tumor'
+                        ? Colors.red.withValues(alpha: 0.1)
+                        : Colors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        item.prediction == 'Tumor'
+                            ? Icons.warning
+                            : Icons.check_circle,
+                        color: item.prediction == 'Tumor'
+                            ? Colors.red.shade400
+                            : Colors.green.shade400,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Prediction: ${item.prediction}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              'Confidence: ${(item.confidence ?? 0).toStringAsFixed(1)}%',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.grey.shade400,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

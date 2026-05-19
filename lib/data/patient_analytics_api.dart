@@ -24,11 +24,13 @@ class PatientNextAttackData {
 
   static PatientNextAttackData? fromJson(Object? raw) {
     if (raw is! Map<String, dynamic>) return null;
-    final type = raw['predictedType'] as String?;
+    final type = (raw['predictedType'] ?? raw['predicted_type']) as String?;
     if (type == null || type.isEmpty) return null;
-    final symRaw = raw['symptomsLikely'] as List? ?? [];
+    final symRaw =
+        (raw['symptomsLikely'] ?? raw['symptoms_likely']) as List? ?? [];
+    final basedOn = (raw['basedOnRecords'] ?? raw['based_on_records']) as num?;
     return PatientNextAttackData(
-      basedOnRecords: (raw['basedOnRecords'] as num?)?.toInt() ?? 0,
+      basedOnRecords: basedOn?.toInt() ?? 0,
       predictedType: type,
       duration: (raw['duration'] as num?)?.toDouble(),
       frequency: (raw['frequency'] as num?)?.toDouble(),
