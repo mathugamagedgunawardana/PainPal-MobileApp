@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../data/auth_models.dart';
-import '../data/database.dart';
 import '../data/models.dart';
 import '../data/patient_remote_api.dart';
 import '../services/app_services.dart';
@@ -20,10 +19,18 @@ class HistoryScreen extends StatefulWidget {
 
 enum _MigraineViewMode { list, calendar }
 
-class _HistoryScreenState extends State<HistoryScreen> {
-  final _database = PainpalDatabase.instance;
+class _MigraineHistoryLoad {
+  const _MigraineHistoryLoad({
+    required this.attacks,
+    this.errorMessage,
+  });
 
-  late Future<List<MigraineAttack>> _migraineFuture;
+  final List<MigraineAttack> attacks;
+  final String? errorMessage;
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  late Future<_MigraineHistoryLoad> _migraineFuture;
 
   _MigraineViewMode _migraineViewMode = _MigraineViewMode.calendar;
   DateTime _calendarMonth = DateTime(DateTime.now().year, DateTime.now().month);
@@ -35,36 +42,79 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   void _reload() {
-    _migraineFuture = _loadMigrainesMerged();
+    _migraineFuture = _loadFromClinicApi();
   }
 
-  Future<List<MigraineAttack>> _loadMigrainesMerged() async {
-    final local = await _database.fetchMigraineAttacks();
+  String _formatApiError(Object e, String apiBase) {
+    final s = e.toString();
+    if (s.contains('SocketException') ||
+        s.contains('ClientException') ||
+        s.contains('Failed host lookup') ||
+        s.contains('Connection refused')) {
+      return "Couldn't reach the clinic API at $apiBase.\n"
+          'Check Settings → API URL (use your Vercel URL on a phone, not localhost).';
+    }
+    if (s.contains('401') || s.contains('Not authorized') || s.contains('Token refresh failed')) {
+      return 'Session expired. Sign out and sign in again, then pull to refresh.';
+    }
+    if (s.contains('403')) {
+      return 'This account cannot load clinic history.';
+    }
+    if (s.contains('404') || s.contains('Patient profile not found')) {
+      return 'No patient profile for this account.';
+    }
+    final short = s.length > 180 ? '${s.substring(0, 180)}…' : s;
+    return "Couldn't load attack history.\n$short";
+  }
+
+  Future<_MigraineHistoryLoad> _loadFromClinicApi() async {
     final auth = AppServices.auth;
     if (!auth.isAuthenticated || auth.currentUser?.role != UserRole.patient) {
-      return local;
+      return const _MigraineHistoryLoad(
+        attacks: [],
+        errorMessage: 'Sign in as a patient to view your clinic attack history.',
+      );
     }
-    try {
+
+    Future<_MigraineHistoryLoad> fetchOnce() async {
       final base = await auth.resolveApiBaseUrl();
       final token = auth.authToken;
       if (token == null || token.isEmpty) {
-        return local;
+        return const _MigraineHistoryLoad(
+          attacks: [],
+          errorMessage: 'Not signed in.',
+        );
       }
       final remote = await fetchPatientMigraineEvents(
         baseUrl: base,
         bearerToken: token,
+        limit: 500,
       );
-      final remoteIds = remote.map((e) => e.attackId).whereType<String>().toSet();
-      final localOnly = local.where((l) {
-        final id = l.attackId;
-        if (id == null) {
-          return true;
+      return _MigraineHistoryLoad(attacks: remote);
+    }
+
+    try {
+      return await fetchOnce();
+    } catch (e) {
+      final unauthorized =
+          e.toString().contains('401') || e.toString().contains('Not authorized');
+      if (unauthorized) {
+        try {
+          await auth.refreshToken();
+          return await fetchOnce();
+        } catch (e2) {
+          final base = await auth.resolveApiBaseUrl();
+          return _MigraineHistoryLoad(
+            attacks: const [],
+            errorMessage: _formatApiError(e2, base),
+          );
         }
-        return !remoteIds.contains(id);
-      });
-      return [...remote, ...localOnly];
-    } catch (_) {
-      return local;
+      }
+      final base = await auth.resolveApiBaseUrl();
+      return _MigraineHistoryLoad(
+        attacks: const [],
+        errorMessage: _formatApiError(e, base),
+      );
     }
   }
 
@@ -83,11 +133,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               actions: [
                 IconButton(
                   icon: const Icon(Icons.refresh),
-                  onPressed: () {
-                    setState(() {
-                      _reload();
-                    });
-                  },
+                  onPressed: () => setState(_reload),
                 ),
               ],
             ),
@@ -102,108 +148,175 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 child: IconButton(
                   icon: const Icon(Icons.refresh),
                   tooltip: 'Refresh',
-                  onPressed: () {
-                    setState(() {
-                      _reload();
-                    });
-                  },
+                  onPressed: () => setState(_reload),
                 ),
               ),
             ),
           Expanded(
             child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          // MIGRAINE HISTORY SECTION
-          SectionHeader(
-            title: 'Migraine Attack History',
-            subtitle: 'Review your recorded attacks',
-            illustrationIcon: Icons.history,
-          ),
-          const SizedBox(height: 12),
-          SegmentedButton<_MigraineViewMode>(
-            style: SegmentedButton.styleFrom(
-              selectedBackgroundColor: const Color(0xFFB6F36B),
-              selectedForegroundColor: const Color(0xFF0F1218),
-              backgroundColor: const Color(0xFF171B22),
-              side: BorderSide(color: Colors.grey.shade700),
-            ),
-            segments: const [
-              ButtonSegment(
-                value: _MigraineViewMode.calendar,
-                label: Text('Calendar'),
-                icon: Icon(Icons.calendar_month, size: 18),
-              ),
-              ButtonSegment(
-                value: _MigraineViewMode.list,
-                label: Text('List'),
-                icon: Icon(Icons.view_list, size: 18),
-              ),
-            ],
-            selected: {_migraineViewMode},
-            onSelectionChanged: (s) {
-              setState(() => _migraineViewMode = s.first);
-            },
-          ),
-          const SizedBox(height: 16),
-          FutureBuilder<List<MigraineAttack>>(
-            future: _migraineFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return Center(
-                  child: Column(
-                    children: [
-                      Icon(Icons.inbox, size: 64, color: Colors.grey.shade600),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No migraine records yet',
-                        style: theme.textTheme.bodyLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Start logging your attacks to see them here',
+              padding: const EdgeInsets.all(20),
+              children: [
+                SectionHeader(
+                  title: 'Migraine Attack History',
+                  subtitle:
+                      'From your clinic database (MongoDB) via Next.js — not stored on this phone.',
+                  illustrationIcon: Icons.history,
+                ),
+                const SizedBox(height: 12),
+                SegmentedButton<_MigraineViewMode>(
+                  style: SegmentedButton.styleFrom(
+                    selectedBackgroundColor: const Color(0xFFB6F36B),
+                    selectedForegroundColor: const Color(0xFF0F1218),
+                    backgroundColor: const Color(0xFF171B22),
+                    side: BorderSide(color: Colors.grey.shade700),
+                  ),
+                  segments: const [
+                    ButtonSegment(
+                      value: _MigraineViewMode.calendar,
+                      label: Text('Calendar'),
+                      icon: Icon(Icons.calendar_month, size: 18),
+                    ),
+                    ButtonSegment(
+                      value: _MigraineViewMode.list,
+                      label: Text('List'),
+                      icon: Icon(Icons.view_list, size: 18),
+                    ),
+                  ],
+                  selected: {_migraineViewMode},
+                  onSelectionChanged: (s) {
+                    setState(() => _migraineViewMode = s.first);
+                  },
+                ),
+                const SizedBox(height: 16),
+                FutureBuilder<_MigraineHistoryLoad>(
+                  future: _migraineFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+                    if (snapshot.hasError) {
+                      return _ErrorPanel(message: snapshot.error.toString());
+                    }
+                    final load = snapshot.data;
+                    final err = load?.errorMessage;
+                    if (err != null && err.isNotEmpty) {
+                      return _ErrorPanel(message: err);
+                    }
+                    final itemsRaw = load?.attacks ?? const <MigraineAttack>[];
+                    if (itemsRaw.isEmpty) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 32),
+                          child: Column(
+                            children: [
+                              Icon(Icons.inbox, size: 64, color: Colors.grey.shade600),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No migraine records in your clinic database',
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.bodyLarge,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Log an attack while signed in — it saves to MongoDB.',
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: Colors.grey.shade400,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                    final items = List<MigraineAttack>.from(itemsRaw);
+                    items.sort((a, b) {
+                      final ta = a.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
+                      final tb = b.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
+                      return tb.compareTo(ta);
+                    });
+
+                    final countBanner = Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: Text(
+                        '${items.length} record${items.length == 1 ? '' : 's'} from clinic database'
+                        '${items.length >= 500 ? ' (showing latest 500)' : ''}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: Colors.grey.shade400,
                         ),
                       ),
-                    ],
-                  ),
-                );
-              }
-              final items = List<MigraineAttack>.from(snapshot.data!);
-              items.sort((a, b) {
-                final ta = a.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
-                final tb = b.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
-                return tb.compareTo(ta);
-              });
-              if (_migraineViewMode == _MigraineViewMode.calendar) {
-                return _AttackHistoryCalendar(
-                  month: _calendarMonth,
-                  attacks: items,
-                  onMonthChanged: (d) => setState(() => _calendarMonth = d),
-                );
-              }
-              return Column(
-                children: items
-                    .asMap()
-                    .entries
-                    .map((entry) {
-                      final index = entry.key;
-                      final item = entry.value;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _MigraineCard(item: item, index: index),
-                      );
-                    })
-                    .toList(),
-              );
-            },
+                    );
+
+                    final body = _migraineViewMode == _MigraineViewMode.calendar
+                        ? _AttackHistoryCalendar(
+                            month: _calendarMonth,
+                            attacks: items,
+                            onMonthChanged: (d) => setState(() => _calendarMonth = d),
+                          )
+                        : Column(
+                            children: items
+                                .asMap()
+                                .entries
+                                .map(
+                                  (entry) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: _MigraineCard(
+                                      item: entry.value,
+                                      index: entry.key,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                          );
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        countBanner,
+                        body,
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
-          const SizedBox(height: 20),
         ],
+      ),
+    );
+  }
+}
+
+class _ErrorPanel extends StatelessWidget {
+  const _ErrorPanel({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.red.shade900.withValues(alpha: 0.25),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.shade700),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.error_outline, color: Colors.red.shade300),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: theme.textTheme.bodySmall?.copyWith(height: 1.35),
             ),
           ),
         ],
@@ -228,7 +341,6 @@ class _AttackHistoryCalendar extends StatelessWidget {
   final ValueChanged<DateTime> onMonthChanged;
 
   static int _leadingBlankDays(DateTime firstOfMonth) {
-    // Sunday-first columns: Dart uses Mon=1 … Sun=7.
     return firstOfMonth.weekday % 7;
   }
 
@@ -518,7 +630,7 @@ class _AttackHistoryCalendar extends StatelessWidget {
         if (hasUndated) ...[
           const SizedBox(height: 12),
           Text(
-            'Entries without a date only appear in List view.',
+            'Some clinic records have no date and only appear in List view.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: Colors.grey.shade500,
             ),
@@ -530,14 +642,13 @@ class _AttackHistoryCalendar extends StatelessWidget {
 }
 
 class _MigraineCard extends StatelessWidget {
-  final MigraineAttack item;
-  final int index;
-
   const _MigraineCard({
-    Key? key,
     required this.item,
     required this.index,
-  }) : super(key: key);
+  });
+
+  final MigraineAttack item;
+  final int index;
 
   @override
   Widget build(BuildContext context) {
@@ -558,7 +669,7 @@ class _MigraineCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-              Row(
+          Row(
             children: [
               Container(
                 width: 40,
@@ -646,11 +757,13 @@ class _MigraineCard extends StatelessWidget {
                 children: [
                   const Icon(Icons.verified, color: Color(0xFFB6F36B)),
                   const SizedBox(width: 8),
-                  Text(
-                    'Type: ${item.type}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFFB6F36B),
-                      fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Text(
+                      'Type: ${item.type}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: const Color(0xFFB6F36B),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
@@ -664,16 +777,15 @@ class _MigraineCard extends StatelessWidget {
 }
 
 class _StatChip extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-
   const _StatChip({
-    Key? key,
     required this.label,
     required this.value,
     required this.icon,
-  }) : super(key: key);
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -692,10 +804,13 @@ class _StatChip extends StatelessWidget {
             children: [
               Icon(icon, size: 14, color: const Color(0xFFB6F36B)),
               const SizedBox(width: 4),
-              Text(
-                label,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.grey.shade400,
+              Flexible(
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.grey.shade400,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -707,10 +822,10 @@ class _StatChip extends StatelessWidget {
               fontWeight: FontWeight.w600,
               color: const Color(0xFFB6F36B),
             ),
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
     );
   }
 }
-

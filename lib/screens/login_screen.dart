@@ -104,7 +104,8 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Use the same API Base URL as in Settings (e.g. http://10.0.2.2:3000 on Android emulator).',
+            'API URL comes from .env (default http://127.0.0.1:3000). On Android emulator run '
+            'scripts/android-reverse-port.sh, then restart the app.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: scheme.onSurfaceVariant,
             ),

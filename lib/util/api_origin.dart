@@ -26,8 +26,17 @@ String mapAndroidLoopbackIfNeeded(String base) {
 }
 
 /// Normalizes then applies Android emulator host mapping.
+///
+/// When [skipAndroidLoopbackMap] is true (`.env` `API_ANDROID_USE_LOCALHOST=true`),
+/// keep `localhost` / `127.0.0.1` unchanged. You must run
+/// `adb reverse tcp:3000 tcp:3000` so the emulator's loopback reaches the host.
 String resolveApiOriginForDevice({
   required String rawBase,
+  bool skipAndroidLoopbackMap = false,
 }) {
-  return mapAndroidLoopbackIfNeeded(normalizeApiOrigin(rawBase));
+  final normalized = normalizeApiOrigin(rawBase);
+  if (skipAndroidLoopbackMap) {
+    return normalized;
+  }
+  return mapAndroidLoopbackIfNeeded(normalized);
 }

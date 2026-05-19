@@ -215,11 +215,14 @@ class MigraineApiResponse {
     required this.summary,
     required this.predictedType,
     required this.symptomsReceived,
+    this.serverEventId,
   });
 
   final String summary;
   final String predictedType;
   final List<String> symptomsReceived;
+  /// Prisma/Mongo document id from POST /api/summary (`event_id`).
+  final String? serverEventId;
 
   static MigraineApiResponse fromJson(Map<String, dynamic> json) {
     return MigraineApiResponse(
@@ -230,6 +233,8 @@ class MigraineApiResponse {
               ?.map((e) => e.toString())
               .toList() ??
           <String>[],
+      serverEventId:
+          json['event_id']?.toString() ?? json['id']?.toString(),
     );
   }
 }
@@ -292,15 +297,23 @@ class MriApiResponse {
   MriApiResponse({
     required this.prediction,
     required this.confidence,
+    this.scanId,
+    this.blobUrl,
   });
 
   final String prediction;
   final double confidence;
+  final String? scanId;
+  final String? blobUrl;
 
   static MriApiResponse fromJson(Map<String, dynamic> json) {
     return MriApiResponse(
-      prediction: json['prediction'] as String? ?? 'Unknown',
+      prediction: json['prediction'] as String? ??
+          json['predicted_label'] as String? ??
+          'Unknown',
       confidence: (json['confidence'] as num?)?.toDouble() ?? 0.0,
+      scanId: json['scanId']?.toString(),
+      blobUrl: json['blobUrl'] as String?,
     );
   }
 }

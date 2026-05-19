@@ -3,6 +3,9 @@ class BackendConfig {
   /// Request timeout duration
   static const Duration requestTimeout = Duration(seconds: 30);
 
+  /// MRI upload + model inference (Blob + ResNet18) can take longer on mobile networks.
+  static const Duration mriRequestTimeout = Duration(seconds: 90);
+
   /// Maximum retry attempts for failed requests
   static const int maxRetries = 3;
 
@@ -12,6 +15,10 @@ class BackendConfig {
   /// API endpoints
   static const String summaryEndpoint = '/api/summary';
   static const String mriPredictEndpoint = '/api/mri/predict';
+  /// Browser: Vercel Blob client handler; then POST [mriPredictEndpoint] with blobPathname JSON.
+  static const String mriUploadEndpoint = '/api/mri/upload';
+  /// Mobile: multipart → Vercel Blob (server); then POST [mriPredictEndpoint] with blobPathname JSON.
+  static const String mriUploadFileEndpoint = '/api/mri/upload-file';
 
   /// Fallback when neither Settings "API Base URL" nor `.env` `API_BASE_URL` is set (see [AuthService.resolveApiBaseUrl]).
   static const String mongoDbApiUrl = 'http://localhost:3000';

@@ -158,6 +158,24 @@ class DoctorPatientChatApi {
         .toList();
   }
 
+  /// Deletes all messages in the conversation (both parties see an empty thread).
+  Future<int> clearMessages(String conversationId) async {
+    final token = _token();
+    if (token == null) {
+      throw StateError('Not signed in');
+    }
+    final base = await _base();
+    final uri = Uri.parse('$base${BackendConfig.chatMessagesEndpoint(conversationId)}');
+    final res = await _client
+        .delete(uri, headers: _headers(token))
+        .timeout(BackendConfig.requestTimeout);
+    if (res.statusCode != 200) {
+      throw Exception('Clear failed (${res.statusCode}): ${res.body}');
+    }
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    return (data['deleted'] as num?)?.toInt() ?? 0;
+  }
+
   Future<PatientChatMessage> sendMessage(
     String conversationId,
     String content,

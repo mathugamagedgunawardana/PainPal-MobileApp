@@ -57,5 +57,16 @@ void main() {
         'http://10.0.2.2:3000',
       );
     });
+
+    test('skips mapping when skipAndroidLoopbackMap is true', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      expect(
+        resolveApiOriginForDevice(
+          rawBase: 'http://127.0.0.1:3000/',
+          skipAndroidLoopbackMap: true,
+        ),
+        'http://127.0.0.1:3000',
+      );
+    });
   });
 }

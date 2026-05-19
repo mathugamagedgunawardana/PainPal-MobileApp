@@ -229,12 +229,34 @@ Future<PatientAiSummaryPayload?> fetchPatientAiSummary({
   return PatientAiSummaryPayload.fromSummaryJson(map['summary']);
 }
 
+final Map<String, _AnalyticsCacheEntry> _analyticsCache = {};
+const _analyticsCacheTtl = Duration(seconds: 60);
+
+class _AnalyticsCacheEntry {
+  _AnalyticsCacheEntry(this.data, this.fetchedAt);
+  final PatientAnalyticsData data;
+  final DateTime fetchedAt;
+}
+
+/// Clears in-memory analytics cache (e.g. after logging a new episode).
+void clearPatientAnalyticsCache() => _analyticsCache.clear();
+
 /// Fetches analytics stored in MongoDB through the Next.js API.
 Future<PatientAnalyticsData> fetchPatientAnalytics({
   required String baseUrl,
   required String bearerToken,
   http.Client? client,
+  bool forceRefresh = false,
 }) async {
+  final cacheKey = '${baseUrl.trim()}|${bearerToken.hashCode}';
+  if (!forceRefresh) {
+    final hit = _analyticsCache[cacheKey];
+    if (hit != null &&
+        DateTime.now().difference(hit.fetchedAt) < _analyticsCacheTtl) {
+      return hit.data;
+    }
+  }
+
   final c = client ?? http.Client();
   final root = baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
   final uri = Uri.parse('$root${BackendConfig.patientAnalyticsEndpoint}');
@@ -262,5 +284,7 @@ Future<PatientAnalyticsData> fetchPatientAnalytics({
   }
 
   final map = jsonDecode(response.body) as Map<String, dynamic>;
-  return PatientAnalyticsData.fromJson(map);
+  final data = PatientAnalyticsData.fromJson(map);
+  _analyticsCache[cacheKey] = _AnalyticsCacheEntry(data, DateTime.now());
+  return data;
 }

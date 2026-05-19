@@ -17,23 +17,33 @@ class AuthService {
   final http.Client _client;
   final SettingsStorage _settingsStorage;
 
-  /// API origin: app setting "API Base URL", else `API_BASE_URL` in `.env`, else [BackendConfig.mongoDbApiUrl].
-  Future<String> resolveApiBaseUrl() async {
+  /// Value from Settings / `.env` before Android emulator host mapping.
+  Future<String> resolveConfiguredApiBaseUrl() async {
     final fromSettings = await _settingsStorage.readBaseUrl();
     final s = fromSettings?.trim() ?? '';
-    final String base;
     if (s.isNotEmpty) {
-      base = normalizeApiOrigin(s);
-    } else {
-      final fromEnv = dotenv.env['API_BASE_URL']?.trim();
-      if (fromEnv != null && fromEnv.isNotEmpty) {
-        base = normalizeApiOrigin(fromEnv);
-      } else {
-        base = normalizeApiOrigin(BackendConfig.mongoDbApiUrl);
-      }
+      return normalizeApiOrigin(s);
     }
+    final fromEnv = dotenv.env['API_BASE_URL']?.trim();
+    if (fromEnv != null && fromEnv.isNotEmpty) {
+      return normalizeApiOrigin(fromEnv);
+    }
+    return normalizeApiOrigin(BackendConfig.mongoDbApiUrl);
+  }
 
-    return resolveApiOriginForDevice(rawBase: base);
+  bool _androidUseLocalhostLoopback() {
+    final v = dotenv.env['API_ANDROID_USE_LOCALHOST']?.trim().toLowerCase();
+    return v == 'true' || v == '1' || v == 'yes';
+  }
+
+  /// API origin: [resolveConfiguredApiBaseUrl], then Android maps loopback → `10.0.2.2` unless
+  /// `API_ANDROID_USE_LOCALHOST=true` (use with `adb reverse tcp:3000 tcp:3000`).
+  Future<String> resolveApiBaseUrl() async {
+    final base = await resolveConfiguredApiBaseUrl();
+    return resolveApiOriginForDevice(
+      rawBase: base,
+      skipAndroidLoopbackMap: _androidUseLocalhostLoopback(),
+    );
   }
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'user_data';

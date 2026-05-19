@@ -333,6 +333,66 @@ class _PatientDoctorChatPanelState extends State<_PatientDoctorChatPanel> {
     }
   }
 
+  Future<void> _confirmClearChat() async {
+    final cid = _conversationId;
+    if (cid == null) {
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Clear chat?'),
+        content: Text(
+          'This removes all messages between you and $titleName for both of you. '
+          'This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Clear',
+              style: TextStyle(color: Colors.red.shade400),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) {
+      return;
+    }
+    setState(() => _loading = true);
+    try {
+      await _api.clearMessages(cid);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _messages = [];
+        _error = null;
+      });
+      await _loadConversations();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Chat cleared')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
   Future<void> _send() async {
     final text = _input.text.trim();
     final cid = _conversationId;
@@ -461,14 +521,28 @@ class _PatientDoctorChatPanelState extends State<_PatientDoctorChatPanel> {
           ),
         if (_conversationId != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: Text(
-              'Chat with $titleName',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 15,
-              ),
+            padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Chat with $titleName',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Clear chat',
+                  onPressed: _loading ? null : _confirmClearChat,
+                  icon: Icon(
+                    Icons.delete_outline,
+                    color: Colors.grey.shade400,
+                  ),
+                ),
+              ],
             ),
           ),
         if (_error != null)
