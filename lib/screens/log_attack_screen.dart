@@ -4,6 +4,7 @@ import '../data/auth_models.dart';
 import '../data/patient_analytics_api.dart';
 import '../services/app_services.dart';
 import '../services/attack_timer_service.dart';
+import '../widgets/patient_overview_cards.dart';
 import 'migraine_form_screen.dart';
 
 const _kSurface = Color(0xFF171B22);
@@ -26,16 +27,29 @@ class _LogAttackScreenState extends State<LogAttackScreen> {
   String? _error;
   PatientAnalyticsData? _analytics;
 
-  String _formatSnapshotError(Object e, String apiBase) {
+  String _formatSnapshotError(
+    Object e,
+    String apiBase, {
+    String? configuredBase,
+  }) {
     final s = e.toString();
     if (s.contains('SocketException') ||
         s.contains('ClientException') ||
         s.contains('Failed host lookup') ||
         s.contains('Connection refused') ||
         s.contains('Network is unreachable')) {
-      return "Couldn't reach the API at $apiBase.\n"
-          'On a real phone, use your computer\'s LAN IP in Settings (not localhost). '
-          'Example: http://192.168.1.10:3000 — then pull to refresh.';
+      final configured = configuredBase?.trim();
+      final hostHint = (configured != null &&
+              configured.isNotEmpty &&
+              configured != apiBase)
+          ? '\n(.env uses $configured; on Android emulator that becomes $apiBase to reach your PC.)'
+          : '';
+      final adbHint = apiBase.contains('127.0.0.1') || apiBase.contains('localhost')
+          ? '\nFor local dev: run `adb reverse tcp:3000 tcp:3000` and start Next.js (`cd client && npm run dev`).'
+          : '';
+      return "Couldn't reach the API at $apiBase.$hostHint$adbHint\n"
+          'On a physical phone, use your computer\'s LAN IP (not localhost), e.g. '
+          'http://192.168.1.10:3000 — then pull to refresh.';
     }
     if (s.contains('Not authorized') ||
         s.contains('401') ||
@@ -78,6 +92,7 @@ class _LogAttackScreenState extends State<LogAttackScreen> {
       _error = null;
     });
 
+    final configured = await AppServices.auth.resolveConfiguredApiBaseUrl();
     final base = await AppServices.auth.resolveApiBaseUrl();
 
     Future<void> loadOnce() async {
@@ -112,7 +127,7 @@ class _LogAttackScreenState extends State<LogAttackScreen> {
           if (!mounted) return;
           setState(() {
             _loadingAnalytics = false;
-            _error = _formatSnapshotError(e2, base);
+            _error = _formatSnapshotError(e2, base, configuredBase: configured);
           });
           return;
         }
@@ -120,7 +135,7 @@ class _LogAttackScreenState extends State<LogAttackScreen> {
       if (!mounted) return;
       setState(() {
         _loadingAnalytics = false;
-        _error = _formatSnapshotError(e, base);
+        _error = _formatSnapshotError(e, base, configuredBase: configured);
       });
     }
   }
@@ -220,7 +235,7 @@ class _LogAttackScreenState extends State<LogAttackScreen> {
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: _kSurface,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(22),
                       border: Border.all(
                         color: _kAccent.withValues(alpha: 0.35),
                       ),
@@ -351,13 +366,9 @@ class _HeaderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _kSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _kAccent.withValues(alpha: 0.25)),
-      ),
+    return OverviewSectionCard(
+      backgroundColor: _kSurface,
+      borderColor: _kAccent.withValues(alpha: 0.25),
       child: Row(
         children: [
           Container(
@@ -365,7 +376,7 @@ class _HeaderCard extends StatelessWidget {
             height: 56,
             decoration: BoxDecoration(
               color: _kAccent,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(Icons.health_and_safety, color: _kBg, size: 30),
           ),
@@ -376,16 +387,15 @@ class _HeaderCard extends StatelessWidget {
               children: [
                 Text(
                   _greetingLine(),
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'A simple snapshot of how you\'ve been doing lately.',
+                  'Your health snapshot',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
-                    height: 1.35,
                   ),
                 ),
               ],
@@ -411,48 +421,30 @@ class _NextAttackOverviewSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Next migraine attack',
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-            color: scheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Model forecast from your recent logs—not a diagnosis.',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: scheme.onSurfaceVariant,
-            height: 1.35,
-          ),
-        ),
-        const SizedBox(height: 10),
-        if (data.nextAttack != null)
-          _NextAttackCard(
-            data: data.nextAttack!,
-            disclaimer: data.nextAttackDisclaimer,
-            theme: theme,
-            scheme: scheme,
-          )
-        else if (data.nextAttackUnavailableReason != null &&
-            data.nextAttackUnavailableReason!.trim().isNotEmpty)
-          _NextAttackUnavailableCard(
-            message: data.nextAttackUnavailableReason!,
-            theme: theme,
-            scheme: scheme,
-          )
-        else
-          Text(
-            'Log a few attacks to see a forecast for your next migraine.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-              height: 1.35,
-            ),
-          ),
-      ],
+    if (data.nextAttack != null) {
+      return _NextAttackCard(
+        data: data.nextAttack!,
+        disclaimer: data.nextAttackDisclaimer,
+        theme: theme,
+        scheme: scheme,
+      );
+    }
+    if (data.nextAttackUnavailableReason != null &&
+        data.nextAttackUnavailableReason!.trim().isNotEmpty) {
+      return _NextAttackUnavailableCard(
+        message: data.nextAttackUnavailableReason!,
+        theme: theme,
+        scheme: scheme,
+      );
+    }
+    return OverviewSectionCard(
+      title: 'Forecast',
+      titleIcon: Icons.bolt_rounded,
+      titleColor: Colors.amber.shade200,
+      subtitle: 'Log a few attacks to unlock your next-migraine forecast.',
+      backgroundColor: const Color(0xFF1A1D24),
+      borderColor: Colors.grey.shade700,
+      child: const SizedBox.shrink(),
     );
   }
 }
@@ -471,189 +463,68 @@ class _AnalyticsBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final summary = data;
+    final metrics = <Widget>[
+      HealthMetricCard(
+        label: 'Attacks (30 days)',
+        value: '${summary.episodesLast30Days}',
+        icon: Icons.calendar_month_outlined,
+        highlighted: true,
+      ),
+      HealthMetricCard(
+        label: 'Migraine days (month)',
+        value: '${summary.migraineDaysThisMonth}',
+        icon: Icons.event_busy_outlined,
+      ),
+      HealthMetricCard(
+        label: 'Avg pain (1–10)',
+        value: summary.avgSeverity.toStringAsFixed(1),
+        icon: Icons.speed_outlined,
+      ),
+      HealthMetricCard(
+        label: 'Total logged (90d)',
+        value: '${summary.totalEpisodes}',
+        icon: Icons.insights_outlined,
+      ),
+    ];
+    if (summary.adherencePercent != null) {
+      metrics.add(
+        HealthMetricCard(
+          label: 'Med habit',
+          value: '${summary.adherencePercent}%',
+          icon: Icons.medication_outlined,
+          subtitle: 'approx.',
+        ),
+      );
+    }
+
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Your patterns',
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-            color: scheme.onSurface,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Based on roughly the last three months of logs you\'ve saved.',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: scheme.onSurfaceVariant,
-            height: 1.35,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: _kSurface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _kAccent.withValues(alpha: 0.15)),
-          ),
-          child: Column(
-            children: [
-              _StatRow(
-                label: 'Attacks in the last 30 days',
-                value: '${summary.episodesLast30Days}',
-                theme: theme,
-                scheme: scheme,
-              ),
-              Divider(height: 20, color: scheme.outline.withValues(alpha: 0.25)),
-              _StatRow(
-                label: 'Days with migraine this month',
-                value: '${summary.migraineDaysThisMonth}',
-                theme: theme,
-                scheme: scheme,
-              ),
-              Divider(height: 20, color: scheme.outline.withValues(alpha: 0.25)),
-              _StatRow(
-                label: 'Average pain level (1–10)',
-                value: summary.avgSeverity.toStringAsFixed(1),
-                theme: theme,
-                scheme: scheme,
-              ),
-              Divider(height: 20, color: scheme.outline.withValues(alpha: 0.25)),
-              _StatRow(
-                label: 'Total attacks logged (90 days)',
-                value: '${summary.totalEpisodes}',
-                theme: theme,
-                scheme: scheme,
-              ),
-              if (summary.adherencePercent != null) ...[
-                Divider(height: 20, color: scheme.outline.withValues(alpha: 0.25)),
-                _StatRow(
-                  label: 'Medication habit (approx.)',
-                  value: '${summary.adherencePercent}%',
-                  theme: theme,
-                  scheme: scheme,
-                ),
-              ],
-            ],
-          ),
+        OverviewSectionCard(
+          title: 'Your patterns',
+          titleIcon: Icons.grid_view_rounded,
+          subtitle: 'Last ~90 days of your logs',
+          child: HealthMetricGrid(children: metrics),
         ),
         if (summary.triggers.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          Text(
-            'Triggers you\'ve noted often',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
+          const SizedBox(height: 12),
+          OverviewSectionCard(
+            title: 'Common triggers',
+            titleIcon: Icons.warning_amber_rounded,
+            child: Column(
+              children: summary.triggers
+                  .take(3)
+                  .map(
+                    (t) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: TriggerChipCard(name: t.name, count: t.count),
+                    ),
+                  )
+                  .toList(),
             ),
           ),
-          const SizedBox(height: 8),
-          ...summary.triggers.take(3).map(
-                (t) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(child: Text(t.name)),
-                      Text(
-                        '${t.count}×',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: _kAccent,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
         ],
       ],
-    );
-  }
-}
-
-class _MetricChip extends StatelessWidget {
-  const _MetricChip({
-    required this.label,
-    required this.value,
-    required this.theme,
-  });
-
-  final String label;
-  final String value;
-  final ThemeData theme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: _kBg,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _kAccent.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: _kAccent,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatRow extends StatelessWidget {
-  const _StatRow({
-    required this.label,
-    required this.value,
-    required this.theme,
-    required this.scheme,
-  });
-
-  final String label;
-  final String value;
-  final ThemeData theme;
-  final ColorScheme scheme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
-                height: 1.3,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            value,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -671,41 +542,14 @@ class _NextAttackUnavailableCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1D24),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade700),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.info_outline_rounded, size: 20, color: scheme.onSurfaceVariant),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Forecast unavailable',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: scheme.onSurface,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
+    return OverviewSectionCard(
+      title: 'Forecast unavailable',
+      titleIcon: Icons.info_outline_rounded,
+      titleColor: scheme.onSurfaceVariant,
+      subtitle: message,
+      backgroundColor: const Color(0xFF1A1D24),
+      borderColor: Colors.grey.shade700,
+      child: const SizedBox.shrink(),
     );
   }
 }
@@ -725,128 +569,94 @@ class _NextAttackCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2A2419),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.amber.shade700.withValues(alpha: 0.45)),
-      ),
+    final basedOn = data.basedOnRecords > 0
+        ? 'Based on ${data.basedOnRecords} logged attack${data.basedOnRecords == 1 ? '' : 's'}. '
+        : '';
+    final subtitle = '${basedOn}Awareness only—not a diagnosis or treatment plan.';
+
+    final metricTiles = <Widget>[];
+    if (data.duration != null) {
+      metricTiles.add(
+        HealthMetricCard(
+          label: 'Typical length',
+          value: '${data.duration!.toStringAsFixed(1)} h',
+          icon: Icons.schedule_outlined,
+          highlighted: true,
+        ),
+      );
+    }
+    if (data.frequency != null) {
+      metricTiles.add(
+        HealthMetricCard(
+          label: 'Episodes / month',
+          value: '${data.frequency!.round()}',
+          icon: Icons.repeat_outlined,
+        ),
+      );
+    }
+    if (data.intensity != null) {
+      metricTiles.add(
+        HealthMetricCard(
+          label: 'Pain (1–10 est.)',
+          value: data.intensity!.toStringAsFixed(1),
+          icon: Icons.favorite_border_rounded,
+        ),
+      );
+    }
+
+    final symptoms = data.symptomsLikely.take(4).map((s) {
+      final pct = s.probability != null
+          ? '${(s.probability! * 100).round()}%'
+          : null;
+      return (name: s.name, percentLabel: pct);
+    }).toList();
+
+    return OverviewSectionCard(
+      title: 'Forecast',
+      titleIcon: Icons.bolt_rounded,
+      titleColor: Colors.amber.shade200,
+      subtitle: subtitle,
+      backgroundColor: const Color(0xFF2A2419),
+      borderColor: Colors.amber.shade700.withValues(alpha: 0.45),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.bolt_rounded, color: Colors.amber.shade300, size: 22),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Forecast',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: Colors.amber.shade100,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'For your awareness only—not a diagnosis or treatment plan.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-              height: 1.35,
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: _kBg,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.amber.shade800.withValues(alpha: 0.35)),
             ),
-          ),
-          if (data.basedOnRecords > 0) ...[
-            const SizedBox(height: 6),
-            Text(
-              'Based on ${data.basedOnRecords} logged attack${data.basedOnRecords == 1 ? '' : 's'} in your history.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.amber.shade200.withValues(alpha: 0.9),
-                fontWeight: FontWeight.w600,
+            child: Text(
+              data.predictedTypeDisplay,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: scheme.onSurface,
               ),
             ),
+          ),
+          if (metricTiles.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            HealthMetricGrid(children: metricTiles),
           ],
-          const SizedBox(height: 12),
-          Text(
-            data.predictedTypeDisplay,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: scheme.onSurface,
-            ),
-          ),
-          if (data.duration != null ||
-              data.frequency != null ||
-              data.intensity != null) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              children: [
-                if (data.duration != null)
-                  _MetricChip(
-                    label: 'Typical length',
-                    value: '${data.duration!.toStringAsFixed(1)} h',
-                    theme: theme,
-                  ),
-                if (data.frequency != null)
-                  _MetricChip(
-                    label: 'Episodes / month (est.)',
-                    value: '${data.frequency!.round()}',
-                    theme: theme,
-                  ),
-                if (data.intensity != null)
-                  _MetricChip(
-                    label: 'Pain (1–10 est.)',
-                    value: '${data.intensity!.toStringAsFixed(1)}/10',
-                    theme: theme,
-                  ),
-              ],
-            ),
-          ],
-          if (data.symptomsLikely.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Text(
-              'Symptoms that often show up with your attacks',
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: Colors.amber.shade200,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: data.symptomsLikely.take(4).map((s) {
-                final pct = s.probability != null
-                    ? ' ${(s.probability! * 100).round()}%'
-                    : '';
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _kSurface,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: _kAccent.withValues(alpha: 0.2)),
-                  ),
-                  child: Text(
-                    '${s.name}$pct',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                );
-              }).toList(),
+          if (symptoms.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SymptomLikelihoodCard(
+              title: 'Likely symptoms',
+              symptoms: symptoms,
             ),
           ],
           if (disclaimer != null && disclaimer!.trim().isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Text(
               disclaimer!.trim(),
-              style: theme.textTheme.bodySmall?.copyWith(
+              style: theme.textTheme.labelSmall?.copyWith(
                 color: scheme.onSurfaceVariant,
-                height: 1.35,
+                height: 1.3,
               ),
-              maxLines: 3,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
           ],

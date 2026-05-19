@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../data/auth_models.dart';
-import '../data/database.dart';
 import '../data/patient_analytics_api.dart';
 import '../services/app_services.dart';
 import '../widgets/analytics_widgets.dart';
@@ -17,8 +16,6 @@ class AnalyticsScreen extends StatefulWidget {
 }
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
-  final _database = PainpalDatabase.instance;
-
   String _selectedRange = 'Last 30 days';
   String _selectedTrendView = 'Week';
   late Future<_AnalyticsViewModel> _analyticsFuture;
@@ -53,43 +50,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 		  return _viewModelFromBackend(remote, aiPayload);
 		}
 	  } catch (_) {
-		// Fall back to on-device SQLite below.
+		// Show empty / demo state when clinic API is unreachable.
 	  }
 	}
 
-	await Future<void>.delayed(const Duration(milliseconds: 400));
-	final attacks = await _database.fetchMigraineAttacks();
-
-	final cutoff = DateTime.now().subtract(Duration(days: _rangeDays));
-	final filtered = attacks
-		.where((attack) => (attack.timestamp ?? DateTime.now()).isAfter(cutoff))
-		.toList();
-
-	final samples = filtered.isEmpty
-		? _dummySamplesForRange(_rangeDays)
-		: filtered
-			.map(
-			  (attack) => _AttackSample(
-				date: attack.timestamp ?? DateTime.now(),
-				intensity: attack.intensity,
-				durationHours: attack.durationHours,
-			  ),
-			)
-			.toList();
-
+	await Future<void>.delayed(const Duration(milliseconds: 200));
+	final samples = _dummySamplesForRange(_rangeDays);
 	final totalMigraines = samples.length;
 	final avgIntensity = totalMigraines == 0
 		? 0.0
-		: samples
-				.map((sample) => sample.intensity)
-				.reduce((a, b) => a + b) /
-			totalMigraines;
+		: samples.map((s) => s.intensity).reduce((a, b) => a + b) / totalMigraines;
 	final avgDuration = totalMigraines == 0
 		? 0.0
-		: samples
-				.map((sample) => sample.durationHours)
-				.reduce((a, b) => a + b) /
-			totalMigraines;
+		: samples.map((s) => s.durationHours).reduce((a, b) => a + b) / totalMigraines;
 
 	final low = samples.where((sample) => sample.intensity <= 3).length;
 	final medium = samples

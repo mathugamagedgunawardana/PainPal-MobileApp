@@ -36,42 +36,8 @@ class PainpalDatabase {
     final dbPath = path.join(docs.path, 'painpal.db');
     final db = await openDatabase(
       dbPath,
-      version: 2,
+      version: 3,
       onCreate: (db, _) async {
-        await db.execute('''
-        CREATE TABLE migraine_attacks (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          patient_id TEXT,
-          attack_id TEXT,
-          age INTEGER,
-          Duration INTEGER,
-          Frequency INTEGER,
-          Location TEXT,
-          Character TEXT,
-          Intensity INTEGER,
-          Nausea INTEGER,
-          Vomit INTEGER,
-          Phonophobia INTEGER,
-          Photophobia INTEGER,
-          Visual INTEGER,
-          Sensory INTEGER,
-          Dysphasia INTEGER,
-          Dysarthria INTEGER,
-          Vertigo INTEGER,
-          Tinnitus INTEGER,
-          Hypoacusis INTEGER,
-          Diplopia INTEGER,
-          Defect INTEGER,
-          Ataxia INTEGER,
-          Conscience INTEGER,
-          Paresthesia INTEGER,
-          DPF TEXT,
-          Type TEXT,
-          summary TEXT,
-          timestamp TEXT
-        )
-        ''');
-
         await db.execute('''
         CREATE TABLE ai_chat_messages (
           id TEXT PRIMARY KEY NOT NULL,
@@ -113,6 +79,9 @@ class PainpalDatabase {
             'CREATE INDEX IF NOT EXISTS idx_ai_chat_account_created ON ai_chat_messages (account_key, created_at)',
           );
         }
+        if (oldVersion < 3) {
+          await db.execute('DROP TABLE IF EXISTS migraine_attacks');
+        }
       },
     );
 
@@ -120,18 +89,10 @@ class PainpalDatabase {
     return db;
   }
 
-  Future<int> insertMigraineAttack(MigraineAttack attack) async {
+  /// Removes legacy on-device migraine rows (attacks now live in MongoDB via Next.js API).
+  Future<void> clearMigraineAttacks() async {
     final db = await database;
-    return db.insert('migraine_attacks', attack.toDbMap());
-  }
-
-  Future<List<MigraineAttack>> fetchMigraineAttacks() async {
-    final db = await database;
-    final rows = await db.query(
-      'migraine_attacks',
-      orderBy: 'timestamp DESC',
-    );
-    return rows.map(MigraineAttack.fromDb).toList();
+    await db.execute('DROP TABLE IF EXISTS migraine_attacks');
   }
 
   Future<int> insertMriScan(MriScan scan) async {

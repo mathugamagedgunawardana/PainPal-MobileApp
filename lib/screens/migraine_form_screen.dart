@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../data/api_client.dart';
 import '../data/auth_models.dart';
-import '../data/database.dart';
 import '../data/models.dart';
+import '../data/patient_analytics_api.dart';
 import '../data/storage.dart';
 import '../services/app_services.dart';
 import '../widgets/custom_widgets.dart';
@@ -32,7 +32,6 @@ class MigraineFormScreen extends StatefulWidget {
 
 class _MigraineFormScreenState extends State<MigraineFormScreen> {
   final _storage = SettingsStorage();
-  final _database = PainpalDatabase.instance;
 
   final _formKey = GlobalKey<FormState>();
   final _durationController = TextEditingController();
@@ -188,37 +187,7 @@ class _MigraineFormScreenState extends State<MigraineFormScreen> {
         attack.copyWith(patientId: patientId),
       );
 
-      final saved = MigraineAttack(
-        durationHours: attack.durationHours,
-        frequencyPerMonth: attack.frequencyPerMonth,
-        location: attack.location,
-        character: attack.character,
-        intensity: attack.intensity,
-        nausea: attack.nausea,
-        vomit: attack.vomit,
-        phonophobia: attack.phonophobia,
-        photophobia: attack.photophobia,
-        visual: attack.visual,
-        sensory: attack.sensory,
-        dysphasia: attack.dysphasia,
-        dysarthria: attack.dysarthria,
-        vertigo: attack.vertigo,
-        tinnitus: attack.tinnitus,
-        hypoacusis: attack.hypoacusis,
-        diplopia: attack.diplopia,
-        defect: attack.defect,
-        ataxia: attack.ataxia,
-        conscience: attack.conscience,
-        paresthesia: attack.paresthesia,
-        type: result.predictedType,
-        patientId: patientId,
-        attackId: attack.attackId,
-        age: attack.age,
-        timestamp: attack.timestamp ?? DateTime.now(),
-        summary: result.summary,
-      );
-
-      await _database.insertMigraineAttack(saved);
+      clearPatientAnalyticsCache();
       await _storage.clearDraftAttack();
 
       if (!mounted) {

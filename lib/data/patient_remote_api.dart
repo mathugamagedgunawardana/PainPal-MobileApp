@@ -5,15 +5,17 @@ import 'package:http/http.dart' as http;
 import 'backend_config.dart';
 import 'models.dart';
 
-/// Loads migraine events from Next.js (`GET /api/patient/migraine-events`).
+/// Loads migraine events from Next.js (`GET /api/patient/migraine-events`) — MongoDB via Prisma.
 Future<List<MigraineAttack>> fetchPatientMigraineEvents({
   required String baseUrl,
   required String bearerToken,
   http.Client? client,
+  int limit = 500,
 }) async {
   final c = client ?? http.Client();
   final root = baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
-  final uri = Uri.parse('$root${BackendConfig.patientMigraineEventsEndpoint}');
+  final uri = Uri.parse('$root${BackendConfig.patientMigraineEventsEndpoint}')
+      .replace(queryParameters: {'limit': '$limit'});
 
   final response = await c
       .get(
@@ -64,5 +66,12 @@ Future<List<MriScan>> fetchPatientMriScans({
 
   final data = jsonDecode(response.body) as Map<String, dynamic>;
   final raw = (data['scans'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-  return raw.map(MriScan.fromRemoteJson).toList();
+  return raw.map((row) {
+    final copy = Map<String, dynamic>.from(row);
+    final imageUrl = row['imageUrl'] as String?;
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      copy['imagePath'] = imageUrl.startsWith('http') ? imageUrl : '$root$imageUrl';
+    }
+    return MriScan.fromRemoteJson(copy);
+  }).toList();
 }

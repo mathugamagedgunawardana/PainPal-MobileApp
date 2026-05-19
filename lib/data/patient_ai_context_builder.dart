@@ -2,7 +2,6 @@ import 'package:intl/intl.dart';
 
 import '../data/auth_models.dart';
 import '../data/database.dart';
-import '../data/models.dart';
 import '../data/patient_analytics_api.dart';
 import '../data/patient_full_ai_context_api.dart';
 import '../data/patient_remote_api.dart';
@@ -65,60 +64,39 @@ class PatientAiContextBuilder {
         }
       }
 
-      final db = PainpalDatabase.instance;
-      final localAttacks = await db.fetchMigraineAttacks();
-      localAttacks.sort((a, b) {
-        final ta = a.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final tb = b.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return tb.compareTo(ta);
-      });
-
-      final merged = List<MigraineAttack>.from(localAttacks);
       if (token != null && token.isNotEmpty) {
         try {
           final base = await auth.resolveApiBaseUrl();
           final remote = await fetchPatientMigraineEvents(
             baseUrl: base,
             bearerToken: token,
+            limit: 50,
           );
-          final ids = remote.map((e) => e.attackId).whereType<String>().toSet();
-          final onlyLocal = localAttacks.where((l) {
-            final id = l.attackId;
-            if (id == null) {
-              return true;
-            }
-            return !ids.contains(id);
-          });
-          merged
-            ..clear()
-            ..addAll(remote)
-            ..addAll(onlyLocal);
-          merged.sort((a, b) {
+          remote.sort((a, b) {
             final ta = a.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
             final tb = b.timestamp ?? DateTime.fromMillisecondsSinceEpoch(0);
             return tb.compareTo(ta);
           });
+          lines.add('--- Recent migraine logs from clinic database (newest first) ---');
+          if (remote.isEmpty) {
+            lines.add('No logged attacks in clinic database.');
+          } else {
+            final n = remote.length > 12 ? 12 : remote.length;
+            for (var i = 0; i < n; i++) {
+              final a = remote[i];
+              final ts = a.timestamp != null
+                  ? DateFormat.yMMMd().add_jm().format(a.timestamp!.toLocal())
+                  : 'unknown date';
+              lines.add(
+                '- $ts: intensity ${a.intensity}, duration ${a.durationHours}h, location ${a.location}, character ${a.character}',
+              );
+            }
+            if (remote.length > n) {
+              lines.add('(${remote.length - n} older entries omitted)');
+            }
+          }
         } catch (_) {
-          // keep local only
-        }
-      }
-
-      lines.add('--- Recent migraine logs (newest first; intensity 1–10) ---');
-      if (merged.isEmpty) {
-        lines.add('No logged attacks in local + synced records.');
-      } else {
-        final n = merged.length > 12 ? 12 : merged.length;
-        for (var i = 0; i < n; i++) {
-          final a = merged[i];
-          final ts = a.timestamp != null
-              ? DateFormat.yMMMd().add_jm().format(a.timestamp!.toLocal())
-              : 'unknown date';
-          lines.add(
-            '- $ts: intensity ${a.intensity}, duration ${a.durationHours}h, location ${a.location}, character ${a.character}',
-          );
-        }
-        if (merged.length > n) {
-          lines.add('(${merged.length - n} older entries omitted)');
+          lines.add('(Clinic attack history unavailable.)');
         }
       }
 

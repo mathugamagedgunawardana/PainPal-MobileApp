@@ -112,9 +112,13 @@ class _MriUploadScreenState extends State<MriUploadScreen> {
     });
 
     try {
-      final baseUrl = await _storage.readBaseUrl();
-      if (baseUrl == null || baseUrl.isEmpty) {
-        throw Exception('API base URL is missing. Set it in Settings.');
+      final auth = AppServices.auth;
+      if (!auth.isAuthenticated || auth.currentUser?.role != UserRole.patient) {
+        throw Exception('Sign in as a patient to upload MRI scans to the cloud.');
+      }
+      final baseUrl = await auth.resolveApiBaseUrl();
+      if (baseUrl.isEmpty) {
+        throw Exception('API base URL is missing. Set API_BASE_URL in .env.');
       }
       final patientId = await _storage.readPatientId();
       final api = ApiClient(baseUrl: baseUrl);
@@ -129,6 +133,7 @@ class _MriUploadScreenState extends State<MriUploadScreen> {
         confidence: result.confidence,
         timestamp: DateTime.now(),
         patientId: patientId,
+        mriId: result.scanId,
       );
       await _database.insertMriScan(scan);
 
@@ -190,6 +195,14 @@ class _MriUploadScreenState extends State<MriUploadScreen> {
               ),
             ),
     );
+  }
+
+  Map<String, String>? _mriImageHeaders() {
+    final token = AppServices.auth.authToken;
+    if (token == null || token.isEmpty) {
+      return null;
+    }
+    return {'Authorization': 'Bearer $token'};
   }
 
   Future<void> _onRefreshMriHistory() async {
@@ -449,7 +462,11 @@ class _MriUploadScreenState extends State<MriUploadScreen> {
                         final item = entry.value;
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          child: _MriHistoryCard(item: item, index: index),
+                          child: _MriHistoryCard(
+                            item: item,
+                            index: index,
+                            imageHeaders: _mriImageHeaders(),
+                          ),
                         );
                       })
                       .toList(),
@@ -465,10 +482,12 @@ class _MriHistoryCard extends StatelessWidget {
   const _MriHistoryCard({
     required this.item,
     required this.index,
+    this.imageHeaders,
   });
 
   final MriScan item;
   final int index;
+  final Map<String, String>? imageHeaders;
 
   @override
   Widget build(BuildContext context) {
@@ -485,7 +504,18 @@ class _MriHistoryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (item.imagePath.isNotEmpty && File(item.imagePath).existsSync())
+          if (item.imagePath.startsWith('http'))
+            SizedBox(
+              width: double.infinity,
+              height: 180,
+              child: Image.network(
+                item.imagePath,
+                headers: imageHeaders,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => _imagePlaceholder(),
+              ),
+            )
+          else if (item.imagePath.isNotEmpty && File(item.imagePath).existsSync())
             SizedBox(
               width: double.infinity,
               height: 180,
@@ -495,18 +525,7 @@ class _MriHistoryCard extends StatelessWidget {
               ),
             )
           else
-            Container(
-              width: double.infinity,
-              height: 180,
-              color: Colors.grey.shade900,
-              child: Center(
-                child: Icon(
-                  Icons.image,
-                  size: 64,
-                  color: Colors.grey.shade700,
-                ),
-              ),
-            ),
+            _imagePlaceholder(),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -594,6 +613,21 @@ class _MriHistoryCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _imagePlaceholder() {
+    return Container(
+      width: double.infinity,
+      height: 180,
+      color: Colors.grey.shade900,
+      child: Center(
+        child: Icon(
+          Icons.image,
+          size: 64,
+          color: Colors.grey.shade700,
+        ),
       ),
     );
   }
