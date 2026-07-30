@@ -1,5 +1,5 @@
 import 'package:google_generative_ai/google_generative_ai.dart';
-import 'livekit_config.dart';
+import 'ai_config.dart';
 
 /// Service for handling Gemini AI responses
 class GeminiAiService {

@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Platform docs & FAQ
+    url: https://github.com/YOUR_ORG/PainPal-Web/tree/main/docs
+    about: Installation, API, architecture
+  - name: Web/API issues
+    url: https://github.com/YOUR_ORG/PainPal-Web/issues
+    about: Backend or web dashboard bugs
+  - name: Security
+    url: https://github.com/YOUR_ORG/PainPal-MobileApp/blob/main/SECURITY.md
+    about: Private security reports

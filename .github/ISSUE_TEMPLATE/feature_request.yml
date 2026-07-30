@@ -1,0 +1,25 @@
+name: Feature Request
+description: Suggest a mobile app enhancement
+title: "[Feature]: "
+labels: ["enhancement", "mobile"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to submit a PR

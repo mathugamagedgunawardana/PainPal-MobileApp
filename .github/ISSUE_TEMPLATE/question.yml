@@ -1,0 +1,22 @@
+name: Question
+description: Ask a question about the mobile app
+title: "[Question]: "
+labels: ["question", "mobile"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Platform questions: [PainPal-Web Discussions](https://github.com/YOUR_ORG/PainPal-Web/discussions)
+        Setup: [docs/mobile-setup.md](../../docs/mobile-setup.md)
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context

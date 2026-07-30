@@ -1,5 +1,5 @@
 name: painpal
-description: "A new Flutter project."
+description: "PainPal — Flutter patient app for migraine tracking and AI-assisted support."
 publish_to: 'none'
 
 version: 1.0.0+1
